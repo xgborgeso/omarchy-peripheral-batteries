@@ -28,7 +28,7 @@ Item {
     return false
   }
 
-  readonly property string defaultHelperPath: Qt.resolvedUrl("helper/peripherals-status.py")
+  readonly property string defaultHelperPath: Qt.resolvedUrl("helper/status.py")
     .toString().replace(/^file:\/\//, "")
   readonly property string helperPath: String(setting("helperPath", "") || defaultHelperPath)
 

@@ -29,7 +29,7 @@
 
 ## How it works
 
-The plugin is a bar widget. `BarWidget.qml` is the chip; it loads `Panel.qml`. A nested `Service.qml` runs `helper/peripherals-status.py` on an interval. That script reads `/sys` only and never opens `/dev/hidraw`. JSON on stdout, always exit 0.
+The plugin is a bar widget. `BarWidget.qml` is the chip; it loads `Panel.qml`. A nested `Service.qml` runs `helper/status.py` on an interval. That script reads `/sys` only and never opens `/dev/hidraw`. JSON on stdout, always exit 0.
 
 `omarchy plugin add` clones files. It does not compile anything, does not run a setup hook, and does not ask for sudo.
 

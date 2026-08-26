@@ -5,7 +5,7 @@ inside the Omarchy bar.
 
 - **The panel.** QML that runs inside the long-lived Quickshell process. It
   never talks to HID itself.
-- **The helper**, `helper/peripherals-status.py`. Python 3 standard library.
+- **The helper**, `helper/status.py`. Python 3 standard library.
   It reads `/sys` only and never opens `/dev/hidraw`. Optional `headsetcontrol`
   on `PATH` fills headset rows the kernel does not export.
 
@@ -23,7 +23,7 @@ omarchy plugin validate .
 ```
 
 `Model.js` is parsing and formatting with no QML imports. Helper tests load
-`helper/peripherals-status.py` and the sysfs fixtures under `tests/fixtures/`.
+`helper/status.py` and the sysfs fixtures under `tests/fixtures/`.
 A green suite is not evidence that a live-hardware fix works. See the next
 section.
 
