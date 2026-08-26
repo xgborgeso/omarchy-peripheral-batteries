@@ -13,8 +13,8 @@ no daemon and no dependencies beyond the Python 3 already on the system.
 ## Features
 
 - Presence and percent for every wireless peripheral the kernel already reports
-- Brand groups when the manufacturer or USB vendor id is known, so LOGITECH gets
-  a header and a no-name dongle gets none
+- Brand groups when the manufacturer or USB vendor id is known, so a known brand
+  gets a header and a no-name dongle gets none
 - Placeholder names when the kernel gives none: `Mouse 1`, `Headset 2`,
   `Device 1`. Missing identity never errors the widget, and a missing percent
   reads `--`
@@ -92,4 +92,4 @@ omarchy plugin remove io.github.gabriel.peripheral-batteries
 
 ## License
 
-MIT. Not affiliated with Logitech or any peripheral vendor.
+MIT. Not affiliated with any peripheral vendor.
