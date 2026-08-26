@@ -75,24 +75,39 @@ assert.strictEqual(Model.formatRemaining(0), "--")
 assert.strictEqual(Model.formatRemaining(60), "~1 minute")
 assert.strictEqual(Model.formatRemaining(120), "~2 minutes")
 assert.strictEqual(Model.formatRemaining(48 * 3600), "~48 hours")
-assert.strictEqual(Model.typicalHours(ok.devices[0]), 70)
-assert.strictEqual(Model.typicalHours(ok.devices[1]), 50)
-assert.strictEqual(Model.formatRemaining(Model.estimatedRemainingSec({
-  name: "Logitech PRO X", kind: "mouse", level: 75, remaining_sec: -1, charging: false
-})), "~53 hours")
-assert.strictEqual(Model.formatRemaining(Model.estimatedRemainingSec({
-  name: "Logitech PRO X 2 LIGHTSPEED", kind: "headset", level: 67, remaining_sec: -1, charging: false
-})), "~34 hours")
+assert.strictEqual(ok.devices[0].remaining_sec, Model.LEVEL_UNKNOWN)
+assert.strictEqual(Model.estimatedRemainingSec(ok.devices[0]), Model.LEVEL_UNKNOWN)
 assert.strictEqual(Model.estimatedRemainingSec({
-  name: "Logitech PRO X", kind: "mouse", level: 75, charging: true, status: "charging"
+  name: "Logitech PRO X", kind: "mouse", level: 75, remaining_sec: -1, charging: false
 }), Model.LEVEL_UNKNOWN)
-assert.ok(Model.displayModes(ok.devices).indexOf("remaining") >= 0)
+assert.strictEqual(Model.estimatedRemainingSec({
+  name: "Logitech PRO X 2 LIGHTSPEED", kind: "headset", level: 67, remaining_sec: -1, charging: false
+}), Model.LEVEL_UNKNOWN)
+assert.strictEqual(Model.estimatedRemainingSec({
+  name: "unknown dongle mouse", kind: "mouse", level: 40, remaining_sec: -1, charging: false
+}), Model.LEVEL_UNKNOWN)
+assert.strictEqual(Model.formatRemaining(Model.estimatedRemainingSec({
+  name: "any mouse", kind: "mouse", level: 50, remaining_sec: 48 * 3600, charging: false
+})), "~48 hours")
 assert.strictEqual(Model.statusLabel("discharging", false), "In use")
-assert.deepStrictEqual(Model.displayModes(ok.devices), ["percent", "remaining", "status"])
-assert.strictEqual(Model.nextDisplayMode("percent", ok.devices), "remaining")
-assert.strictEqual(Model.nextDisplayMode("remaining", ok.devices), "status")
+assert.deepStrictEqual(Model.displayModes(ok.devices), ["percent", "status"])
+assert.strictEqual(Model.nextDisplayMode("percent", ok.devices), "status")
+assert.strictEqual(Model.nextDisplayMode("status", ok.devices), "percent")
 assert.strictEqual(Model.levelDisplayText(ok.devices[0], "percent"), "77%")
+assert.strictEqual(Model.levelDisplayText(ok.devices[0], "remaining"), "--")
 assert.strictEqual(Model.levelDisplayText(ok.devices[0], "status"), "In use")
+
+const measured = Model.parseStatus(JSON.stringify({
+  ok: true,
+  schema_version: 1,
+  devices: [
+    { id: "pack", name: "Some mouse", brand: "Other", kind: "mouse", level: 50, remaining_sec: 2 * 3600, status: "discharging", available: true }
+  ]
+}))
+assert.strictEqual(measured.devices[0].remaining_sec, 2 * 3600)
+assert.deepStrictEqual(Model.displayModes(measured.devices), ["percent", "remaining", "status"])
+assert.strictEqual(Model.nextDisplayMode("percent", measured.devices), "remaining")
+assert.strictEqual(Model.levelDisplayText(measured.devices[0], "remaining"), "~2 hours")
 
 const empty = Model.parseStatus("")
 assert.strictEqual(empty.ok, false)

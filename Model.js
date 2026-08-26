@@ -154,23 +154,10 @@ function deviceBrand(dev) {
   return "Other"
 }
 
-function typicalHours(dev) {
-  var name = displayName(dev).toLowerCase()
-  var kind = String(dev && dev.kind || "")
-  if (kind === "headset" && name.indexOf("pro x 2") >= 0) return 50
-  if (kind === "mouse" && name.indexOf("pro x") >= 0) return 70
-  return 0
-}
-
 function estimatedRemainingSec(dev) {
   if (!dev) return LEVEL_UNKNOWN
   var measured = integer(dev.remaining_sec, LEVEL_UNKNOWN)
-  if (measured > 0) return measured
-  if (dev.charging === true || dev.status === "charging" || dev.status === "full") return LEVEL_UNKNOWN
-  var hours = typicalHours(dev)
-  var level = integer(dev.level, LEVEL_UNKNOWN)
-  if (hours <= 0 || level <= 0) return LEVEL_UNKNOWN
-  return Math.round(hours * 3600 * (level / 100))
+  return measured > 0 ? measured : LEVEL_UNKNOWN
 }
 
 function formatRemaining(seconds) {
@@ -290,7 +277,6 @@ if (typeof module !== "undefined") {
     kindGlyph: kindGlyph,
     deviceBrand: deviceBrand,
     brandGroups: brandGroups,
-    typicalHours: typicalHours,
     estimatedRemainingSec: estimatedRemainingSec,
     formatRemaining: formatRemaining,
     statusLabel: statusLabel,
