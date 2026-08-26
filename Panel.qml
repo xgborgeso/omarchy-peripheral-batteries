@@ -8,7 +8,7 @@ import "Model.js" as Model
 Ui.Panel {
   id: root
   moduleName: "io.github.gabriel.peripherals-battery"
-  ipcTarget: "peripherals-battery"
+  ipcTarget: "io.github.gabriel.peripherals-battery"
   manageIpc: false
 
   property var anchorItem: null
@@ -23,9 +23,8 @@ Ui.Panel {
     var n = parseInt(String(setting("lowBatteryPercent", 20)), 10)
     return isFinite(n) ? n : 20
   }
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
-  readonly property color dim: Qt.darker(foreground, 1.55)
+  readonly property color dim: Qt.darker(barForeground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool hasDevices: svc ? svc.hasDevices : false
   readonly property string lastError: svc ? String(svc.lastError || "") : ""
@@ -121,13 +120,13 @@ Ui.Panel {
             width: parent.width
             title: root.heroTitle
             meta: root.heroMeta
-            foreground: root.foreground
+            foreground: root.barForeground
             fontFamily: root.fontFamily
             iconOpacity: root.hasDevices ? 1.0 : 0.5
             iconComponent: Component {
               Text {
                 text: "󰂂"
-                color: root.hasDevices ? root.foreground : root.dim
+                color: root.hasDevices ? root.barForeground : root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.display
               }
@@ -156,7 +155,7 @@ Ui.Panel {
               Ui.PanelSectionHeader {
                 visible: modelData.headerShowsBrand === true && String(modelData.brand || "") !== ""
                 text: String(modelData.brand || "").toUpperCase()
-                foreground: root.foreground
+                foreground: root.barForeground
                 fontFamily: root.fontFamily
               }
 
@@ -205,7 +204,7 @@ Ui.Panel {
 
       Text {
         text: Model.kindGlyph(batteryRow.device.kind)
-        color: root.foreground
+        color: root.barForeground
         font.family: root.fontFamily
         font.pixelSize: Style.font.title
         width: Style.space(22)
@@ -215,7 +214,7 @@ Ui.Panel {
 
       Text {
         text: Model.displayName(batteryRow.device)
-        color: root.foreground
+        color: root.barForeground
         font.family: root.fontFamily
         font.pixelSize: Style.font.body
         elide: Text.ElideRight
@@ -225,7 +224,7 @@ Ui.Panel {
 
       Text {
         text: Model.levelText(batteryRow.device.level)
-        color: batteryRow.low ? root.urgent : Qt.darker(root.foreground, 1.4)
+        color: batteryRow.low ? root.urgent : Qt.darker(root.barForeground, 1.4)
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: true

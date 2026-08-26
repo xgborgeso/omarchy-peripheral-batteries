@@ -76,7 +76,7 @@ Ui.BarWidget {
   }
 
   IpcHandler {
-    target: "peripherals-battery"
+    target: root.moduleName
     function open(): void { root.open() }
     function close(): void { root.close() }
     function toggle(): void { root.toggle() }
