@@ -2,18 +2,17 @@
 
 Wireless mice, keyboards, headsets and controllers in the Omarchy Quattro bar, grouped by brand.
 
-Plugins share the long-running Omarchy shell process. This plugin does not start a second Quickshell. It reads `/sys` through a local helper and never opens `/dev/hidraw`.
+Plugins share the long-running Omarchy shell process. This plugin does not start a second Quickshell. It reads `/sys` through a Python 3 helper in the plugin folder and never opens `/dev/hidraw`.
 
 ## Install
 
-Requires [Rust](https://www.rust-lang.org/) (`rustc` + `cargo`) to build the helper.
+Python 3 (stdlib only) ships with Omarchy. No extra packages and no compile step.
 
 ```sh
-cargo build --release --manifest-path helper/Cargo.toml
 omarchy plugin add /home/gabriel/Work/omarchy-peripherals-battery --enable
 ```
 
-`--enable` places the chip on the right of the bar. A clone without a built helper shows **Helper not built**. Rebuild after Rust changes, then `omarchy restart shell`.
+`--enable` places the chip on the right of the bar.
 
 Optional: some gaming headsets do not publish battery through the kernel. Install [headsetcontrol](https://github.com/Sapd/HeadsetControl) with `omarchy pkg add headsetcontrol`, then unplug and replug the dongle so its udev rules apply. The helper uses it when it is on `PATH`. Do not vendor the binary.
 
@@ -45,11 +44,11 @@ omarchy bar set io.github.gabriel.peripherals-battery hideWhenDisconnected false
 PLUGIN_ID="io.github.gabriel.peripherals-battery"
 PLUGIN_DIR="$HOME/.config/omarchy/plugins/$PLUGIN_ID"
 omarchy plugin validate "$PLUGIN_DIR"
-qmllint -I "$OMARCHY_PATH/shell" \
-  "$PLUGIN_DIR/BarWidget.qml" "$PLUGIN_DIR/Panel.qml"
+python3 "$PLUGIN_DIR/tests/helper.test.py"
+node "$PLUGIN_DIR/tests/model.test.js"
 ```
 
-On this system `qmllint` is `/usr/lib/qt6/bin/qmllint` if it is not on `PATH`.
+`tests/` is copied with the plugin. `qmllint -I "$OMARCHY_PATH/shell" BarWidget.qml Panel.qml` is optional; on this system it is `/usr/lib/qt6/bin/qmllint`.
 
 ## Remove
 

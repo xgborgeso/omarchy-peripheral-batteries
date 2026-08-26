@@ -28,7 +28,7 @@ Item {
     return false
   }
 
-  readonly property string defaultHelperPath: Qt.resolvedUrl("helper/target/release/peripherals-status")
+  readonly property string defaultHelperPath: Qt.resolvedUrl("helper/peripherals-status.py")
     .toString().replace(/^file:\/\//, "")
   readonly property string helperPath: String(setting("helperPath", "") || defaultHelperPath)
 
@@ -51,7 +51,7 @@ Item {
   function refresh() {
     if (!enabled || statusProcess.running) return
     refreshing = true
-    statusProcess.command = [helperPath]
+    statusProcess.command = ["/usr/bin/python3", helperPath]
     statusProcess.running = true
   }
 
@@ -72,7 +72,7 @@ Item {
     var text = String(message || "")
     helperMissing = text.indexOf("No such file") >= 0 || text.indexOf("not found") >= 0
     lastError = helperMissing
-      ? "Build the helper with cargo build --release in helper/"
+      ? "Python 3 helper missing"
       : Model.errorText(text || "Could not query peripherals")
   }
 
