@@ -1,0 +1,4 @@
+DRIVER=logitech-hidpp-device
+HID_ID=0003:0000046D:00004093
+HID_NAME=Logitech PRO X
+HID_UNIQ=aa-bb-cc-dd

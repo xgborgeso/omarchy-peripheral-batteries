@@ -1,0 +1,4 @@
+DRIVER=logitech-djreceiver
+HID_ID=0003:0000046D:0000C547
+HID_NAME=Logitech USB Receiver
+HID_UNIQ=

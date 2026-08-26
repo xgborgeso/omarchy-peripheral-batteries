@@ -1,0 +1,4 @@
+DRIVER=hid-generic
+HID_ID=0003:00000951:000016E6
+HID_NAME=Kingston HyperX Alloy Origins Core
+HID_UNIQ=
