@@ -22,12 +22,6 @@
 - **Laptop battery.** That is `omarchy.power`.
 - **Connect / forget.** Stock Bluetooth.
 
-## Screenshots
-
-| | |
-|:---:|:---:|
-| <img src="docs/panel.png" alt="Panel close-up"><br>Logitech mouse and headset, percent only | <img src="docs/panel-in-bar.png" alt="Panel under the Omarchy bar"><br>Same panel under the bar |
-
 ## Requirements
 
 - Omarchy 4 (Quattro). Python 3 is already on the system; the helper uses the standard library only.
