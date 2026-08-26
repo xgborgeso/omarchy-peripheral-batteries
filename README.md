@@ -1,61 +1,100 @@
-# Peripherals Battery
+<h1 align="center">Peripherals Battery</h1>
 
-Wireless mice, keyboards, headsets and controllers in the Omarchy Quattro bar, grouped by brand.
+<p align="center">
+  Wireless mice, keyboards, headsets and controllers in the Omarchy bar, grouped by brand.
+</p>
 
-Plugins share the long-running Omarchy shell process. This plugin does not start a second Quickshell. It reads `/sys` through a Python 3 helper in the plugin folder and never opens `/dev/hidraw`.
+<p align="center">
+  <img src="preview.png" alt="The Peripherals Battery panel open in the Omarchy bar" width="420">
+</p>
+
+## What it shows
+
+- **Presence and percent** for wireless mice, keyboards, headsets and controllers the kernel (or optional `headsetcontrol`) already reports.
+- **Brand groups**, when the manufacturer or USB vendor id is known. LOGITECH here, nothing invented for a no-name dongle.
+- **Placeholders** when the name or brand is missing: `Mouse 1`, `Headset 2`, `Device 1`. Missing identity never errors the widget. Missing percent is `--`.
+- **Low-battery colour and a desktop notification**, using the same warning / critical thresholds you set on the bar.
+
+## Deliberately absent
+
+- **Remaining runtime.** The kernel almost never publishes discharge current for these packs, and marketing hours for a named SKU are not safe to assume for every user's hardware.
+- **Button remap, DPI, SmartShift, RGB.** That is OpenLogi, Solaar, or Piper.
+- **Laptop battery.** That is `omarchy.power`.
+- **Connect / forget.** Stock Bluetooth.
+
+## Screenshots
+
+| | |
+|:---:|:---:|
+| <img src="docs/panel.png" alt="Panel close-up"><br>Logitech mouse and headset, percent only | <img src="docs/panel-in-bar.png" alt="Panel under the Omarchy bar"><br>Same panel under the bar |
+
+## Requirements
+
+- Omarchy 4 (Quattro). Python 3 is already on the system; the helper uses the standard library only.
+- Optional: [headsetcontrol](https://github.com/Sapd/HeadsetControl) on `PATH` for gaming headsets the kernel does not expose (for example a PRO X 2 LIGHTSPEED). `omarchy pkg add headsetcontrol`, then unplug and replug the dongle so its udev rules apply. Do not vendor the binary.
+
+## How it works
+
+The plugin is a bar widget. `BarWidget.qml` is the chip; it loads `Panel.qml`. A nested `Service.qml` runs `helper/peripherals-status.py` on an interval. That script reads `/sys` only and never opens `/dev/hidraw`. JSON on stdout, always exit 0.
+
+`omarchy plugin add` clones files. It does not compile anything, does not run a setup hook, and does not ask for sudo.
 
 ## Install
 
-Python 3 (stdlib only) ships with Omarchy. No extra packages and no compile step.
-
-```sh
-omarchy plugin add /home/gabriel/Work/omarchy-peripherals-battery --enable
+```bash
+omarchy plugin add https://github.com/xgborgeso/omarchy-peripherals-battery.git --enable
 ```
 
-`--enable` places the chip on the right of the bar.
+`--enable` places the chip on the right of the bar. The icon hides when nothing wireless is present (`hideWhenDisconnected`). To keep it visible:
 
-Optional: some gaming headsets do not publish battery through the kernel. Install [headsetcontrol](https://github.com/Sapd/HeadsetControl) with `omarchy pkg add headsetcontrol`, then unplug and replug the dongle so its udev rules apply. The helper uses it when it is on `PATH`. Do not vendor the binary.
-
-## Usage
-
-Click the bar icon to open or close the details panel. Press Escape to close it. Middle click or `r` refreshes. Tab moves to the next stock panel.
-
-The icon hides when nothing wireless is present (`hideWhenDisconnected`). Missing name or brand is placeholdered (`Mouse 1`, `Headset 2`) rather than erroring the widget.
-
-## Configure
-
-```sh
-omarchy bar move io.github.gabriel.peripherals-battery --section right
+```bash
 omarchy bar set io.github.gabriel.peripherals-battery hideWhenDisconnected false --json
 ```
 
-| Key | Default | Meaning |
-|---|---|---|
-| `hideWhenDisconnected` | true | Leave the bar when nothing is present |
-| `refreshIntervalSec` | 30 | Poll interval |
-| `lowBatteryPercent` | 20 | Warning / urgent colour |
-| `criticalBatteryPercent` | 10 | Critical notification |
-| `notifyOnLow` | true | Desktop notification |
-| `notifyRepeatMinutes` | 0 | Re-notify while still low (0 = once) |
-
-## Validate
-
-```sh
-PLUGIN_ID="io.github.gabriel.peripherals-battery"
-PLUGIN_DIR="$HOME/.config/omarchy/plugins/$PLUGIN_ID"
-omarchy plugin validate "$PLUGIN_DIR"
-python3 "$PLUGIN_DIR/tests/helper.test.py"
-node "$PLUGIN_DIR/tests/model.test.js"
-```
-
-`tests/` is copied with the plugin. `qmllint -I "$OMARCHY_PATH/shell" BarWidget.qml Panel.qml` is optional; on this system it is `/usr/lib/qt6/bin/qmllint`.
-
 ## Remove
 
-```sh
+```bash
 omarchy plugin remove io.github.gabriel.peripherals-battery
 ```
 
-## License
+## Keyboard
 
-MIT. Not affiliated with Logitech or any peripheral vendor.
+| Key | Action |
+|-----|--------|
+| left click | open or close the panel |
+| middle click | refresh |
+| `r` | refresh |
+| `tab` | next stock panel |
+| `esc` | close |
+
+A new hero line is chosen each time the panel opens. It stays until you close.
+
+## Settings
+
+| Setting | Default | Notes |
+|---------|---------|-------|
+| Hide when disconnected | on | Leaves the bar rather than sitting empty. |
+| Refresh interval | 30 s | Poll cadence. |
+| Warning battery % | 20 | Urgent colour. |
+| Critical battery % | 10 | Critical notification. |
+| Notify on low | on | Desktop notification. |
+| Re-notify every N minutes | 0 | `0` means once. |
+
+```bash
+omarchy bar move io.github.gabriel.peripherals-battery --section right
+omarchy bar set io.github.gabriel.peripherals-battery refreshIntervalSec 15 --json
+```
+
+## Tests
+
+`Model.js` is parsing and formatting with no QML imports. The helper is Python 3 stdlib.
+
+```bash
+python3 tests/helper.test.py
+node tests/model.test.js
+omarchy plugin validate .
+```
+
+## Licence
+
+MIT. [LICENSE](LICENSE). Not affiliated with Logitech or any peripheral vendor.
