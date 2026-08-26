@@ -72,11 +72,25 @@ assert.strictEqual(logitech.length, 1)
 assert.strictEqual(logitech[0].headerShowsLevel, false)
 assert.strictEqual(logitech[0].devices[0].level !== logitech[0].devices[1].level, true)
 assert.strictEqual(Model.formatRemaining(0), "--")
-assert.strictEqual(Model.formatRemaining(90), "2m")
-assert.strictEqual(Model.formatRemaining(5400), "1h 30m")
+assert.strictEqual(Model.formatRemaining(60), "~1 minute")
+assert.strictEqual(Model.formatRemaining(120), "~2 minutes")
+assert.strictEqual(Model.formatRemaining(48 * 3600), "~48 hours")
+assert.strictEqual(Model.typicalHours(ok.devices[0]), 70)
+assert.strictEqual(Model.typicalHours(ok.devices[1]), 50)
+assert.strictEqual(Model.formatRemaining(Model.estimatedRemainingSec({
+  name: "Logitech PRO X", kind: "mouse", level: 75, remaining_sec: -1, charging: false
+})), "~53 hours")
+assert.strictEqual(Model.formatRemaining(Model.estimatedRemainingSec({
+  name: "Logitech PRO X 2 LIGHTSPEED", kind: "headset", level: 67, remaining_sec: -1, charging: false
+})), "~34 hours")
+assert.strictEqual(Model.estimatedRemainingSec({
+  name: "Logitech PRO X", kind: "mouse", level: 75, charging: true, status: "charging"
+}), Model.LEVEL_UNKNOWN)
+assert.ok(Model.displayModes(ok.devices).indexOf("remaining") >= 0)
 assert.strictEqual(Model.statusLabel("discharging", false), "In use")
-assert.deepStrictEqual(Model.displayModes(ok.devices), ["percent", "status"])
-assert.strictEqual(Model.nextDisplayMode("percent", ok.devices), "status")
+assert.deepStrictEqual(Model.displayModes(ok.devices), ["percent", "remaining", "status"])
+assert.strictEqual(Model.nextDisplayMode("percent", ok.devices), "remaining")
+assert.strictEqual(Model.nextDisplayMode("remaining", ok.devices), "status")
 assert.strictEqual(Model.levelDisplayText(ok.devices[0], "percent"), "77%")
 assert.strictEqual(Model.levelDisplayText(ok.devices[0], "status"), "In use")
 

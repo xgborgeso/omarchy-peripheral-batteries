@@ -23,7 +23,7 @@ The plugin directory is a git clone. After `plugin add`, the live copy is `~/.co
 ## Usage
 
 - Left click the chip: open the panel
-- Click a battery value: cycle percent → remaining (if the kernel has it) → charging status
+- Click a battery value: cycle percent → estimated remaining (`~34 hours`) → charging status
 - Middle click: refresh
 - `r`: refresh
 - Esc: close

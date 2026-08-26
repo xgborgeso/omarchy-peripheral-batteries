@@ -154,16 +154,34 @@ function deviceBrand(dev) {
   return "Other"
 }
 
+function typicalHours(dev) {
+  var name = displayName(dev).toLowerCase()
+  var kind = String(dev && dev.kind || "")
+  if (kind === "headset" && name.indexOf("pro x 2") >= 0) return 50
+  if (kind === "mouse" && name.indexOf("pro x") >= 0) return 70
+  return 0
+}
+
+function estimatedRemainingSec(dev) {
+  if (!dev) return LEVEL_UNKNOWN
+  var measured = integer(dev.remaining_sec, LEVEL_UNKNOWN)
+  if (measured > 0) return measured
+  if (dev.charging === true || dev.status === "charging" || dev.status === "full") return LEVEL_UNKNOWN
+  var hours = typicalHours(dev)
+  var level = integer(dev.level, LEVEL_UNKNOWN)
+  if (hours <= 0 || level <= 0) return LEVEL_UNKNOWN
+  return Math.round(hours * 3600 * (level / 100))
+}
+
 function formatRemaining(seconds) {
   var n = integer(seconds, LEVEL_UNKNOWN)
   if (n <= 0) return "--"
   var minutes = Math.round(n / 60)
-  if (minutes < 1) return "<1m"
-  if (minutes < 60) return String(minutes) + "m"
-  var hours = Math.floor(minutes / 60)
-  var rest = minutes % 60
-  if (rest === 0) return String(hours) + "h"
-  return String(hours) + "h " + String(rest) + "m"
+  if (minutes <= 1) return "~1 minute"
+  if (minutes < 90) return "~" + minutes + " minutes"
+  var hours = Math.round(minutes / 60)
+  if (hours <= 1) return "~1 hour"
+  return "~" + hours + " hours"
 }
 
 function statusLabel(status, charging) {
@@ -179,7 +197,7 @@ function displayModes(devices) {
   var hasRemaining = false
   var hasStatus = false
   for (var i = 0; i < list.length; i++) {
-    if (integer(list[i].remaining_sec, LEVEL_UNKNOWN) > 0) hasRemaining = true
+    if (estimatedRemainingSec(list[i]) > 0) hasRemaining = true
     if (list[i].status && list[i].status !== "unknown") hasStatus = true
     if (list[i].charging === true) hasStatus = true
   }
@@ -196,7 +214,7 @@ function nextDisplayMode(current, devices) {
 }
 
 function levelDisplayText(dev, mode) {
-  if (mode === "remaining") return formatRemaining(dev && dev.remaining_sec)
+  if (mode === "remaining") return formatRemaining(estimatedRemainingSec(dev))
   if (mode === "status") return statusLabel(dev && dev.status, dev && dev.charging)
   return levelText(dev && dev.level)
 }
@@ -272,6 +290,8 @@ if (typeof module !== "undefined") {
     kindGlyph: kindGlyph,
     deviceBrand: deviceBrand,
     brandGroups: brandGroups,
+    typicalHours: typicalHours,
+    estimatedRemainingSec: estimatedRemainingSec,
     formatRemaining: formatRemaining,
     statusLabel: statusLabel,
     displayModes: displayModes,
