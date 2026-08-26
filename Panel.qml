@@ -46,7 +46,7 @@ Ui.Panel {
   readonly property string heroTitle: "Peripheral Batteries"
   readonly property var brandGroups: Model.brandGroups(svc ? svc.devices : [])
   readonly property string heroMeta: !hasDevices
-    ? (helperMissing ? "Helper not built" : (lastError !== "" ? "Cannot read devices" : "Not connected"))
+    ? (helperMissing ? "Helper missing" : (lastError !== "" ? "Cannot read devices" : "Not connected"))
     : heroPhraseText
 
   function pickHeroPhrase() {

@@ -28,9 +28,24 @@ Item {
     return false
   }
 
-  readonly property string defaultHelperPath: Qt.resolvedUrl("helper/status.py")
-    .toString().replace(/^file:\/\//, "")
-  readonly property string helperPath: String(setting("helperPath", "") || defaultHelperPath)
+  function toLocalFile(url) {
+    var s = String(url || "").trim()
+    if (s.indexOf("file:") === 0) {
+      s = s.replace(/^file:\/\//i, "")
+      s = s.replace(/^localhost/i, "")
+      if (s.charAt(0) !== "/") s = "/" + s
+      try { s = decodeURIComponent(s) } catch (e) {}
+    }
+    return s.replace(/\/+$/, "")
+  }
+
+  function helperScript() {
+    var override = String(setting("helperPath", "") || "").trim()
+    if (override) return override
+    var resolved = toLocalFile(Qt.resolvedUrl("helper/status.py"))
+    if (resolved.charAt(0) === "/") return resolved
+    return toLocalFile(Qt.resolvedUrl(".")) + "/helper/status.py"
+  }
 
   // id -> { tier: "warn"|"crit", atMs: number }
   property var notified: ({})
@@ -51,7 +66,7 @@ Item {
   function refresh() {
     if (!enabled || statusProcess.running) return
     refreshing = true
-    statusProcess.command = ["/usr/bin/python3", helperPath]
+    statusProcess.command = ["python3", helperScript()]
     statusProcess.running = true
   }
 
@@ -72,7 +87,7 @@ Item {
     var text = String(message || "")
     helperMissing = text.indexOf("No such file") >= 0 || text.indexOf("not found") >= 0
     lastError = helperMissing
-      ? "Python 3 helper missing"
+      ? "Python 3 helper missing: " + helperScript()
       : Model.errorText(text || "Could not query peripherals")
   }
 
