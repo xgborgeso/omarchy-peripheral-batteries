@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -124,7 +123,7 @@ Panel {
         Column {
           id: column
           width: panelFlick.width
-          spacing: Style.spacing.xxxl
+          spacing: Style.space(14)
 
           PanelHero {
             id: hero
@@ -135,9 +134,11 @@ Panel {
             fontFamily: root.fontFamily
             iconOpacity: svc.hasDevices ? 1.0 : 0.5
             iconComponent: Component {
-              PeripheralsIcon {
-                iconSize: Style.font.display
+              Text {
+                text: "󰂂"
                 color: svc.hasDevices ? root.foreground : root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.display
               }
             }
           }
@@ -148,19 +149,41 @@ Panel {
             text: svc.lastError
             color: root.urgent
             font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: Style.font.caption
+            font.bold: true
             wrapMode: Text.WordWrap
           }
 
           Column {
             visible: svc.hasDevices
             width: parent.width
-            spacing: Style.spacing.md
+            spacing: Style.space(6)
 
-            PanelSectionHeader {
-              text: "BATTERY"
-              foreground: root.foreground
-              fontFamily: root.fontFamily
+            Item {
+              width: parent.width
+              implicitHeight: Math.max(batteryHeader.implicitHeight, batteryPercent.implicitHeight)
+
+              PanelSectionHeader {
+                id: batteryHeader
+                text: "BATTERY"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+              }
+
+              Text {
+                id: batteryPercent
+                visible: Model.lowestLevel(svc.devices) !== Model.LEVEL_UNKNOWN
+                text: Model.levelText(Model.lowestLevel(svc.devices))
+                color: Qt.darker(root.foreground, 1.4)
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.bold: true
+                anchors.right: parent.right
+                anchors.rightMargin: Style.space(6)
+                anchors.verticalCenter: parent.verticalCenter
+              }
             }
 
             Repeater {
@@ -222,77 +245,46 @@ Panel {
 
     readonly property bool low: device.level !== Model.LEVEL_UNKNOWN
       && device.level <= root.lowBatteryPercent && !device.charging
-    implicitHeight: rowColumn.implicitHeight
+    implicitHeight: rowInner.implicitHeight + Style.spacing.xl
 
-    Column {
-      id: rowColumn
+    Row {
+      id: rowInner
       anchors.left: parent.left
       anchors.right: parent.right
-      spacing: Style.spacing.xs
+      anchors.verticalCenter: parent.verticalCenter
+      anchors.leftMargin: Style.space(6)
+      anchors.rightMargin: Style.space(6)
+      spacing: Style.space(8)
 
       Text {
-        width: parent.width
-        text: Model.rowLabel(batteryRow.device)
+        text: Model.kindGlyph(batteryRow.device.kind)
         color: root.foreground
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        wrapMode: Text.WordWrap
+        font.pixelSize: Style.font.title
+        width: Style.space(22)
+        horizontalAlignment: Text.AlignHCenter
+        anchors.verticalCenter: parent.verticalCenter
       }
 
       Text {
-        width: parent.width
-        visible: Model.rowCaption(batteryRow.device) !== ""
-        text: Model.rowCaption(batteryRow.device)
-        color: root.dim
+        text: Model.displayName(batteryRow.device)
+        color: root.foreground
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
-        wrapMode: Text.WordWrap
+        font.pixelSize: Style.font.body
+        elide: Text.ElideRight
+        width: Math.max(0, parent.width - Style.space(22) - Style.space(8) - Style.space(38) - Style.space(8))
+        anchors.verticalCenter: parent.verticalCenter
       }
 
-      RowLayout {
-        width: parent.width
-        spacing: Style.spacing.lg
-
-        Rectangle {
-          id: meterTrack
-          Layout.fillWidth: true
-          Layout.alignment: Qt.AlignVCenter
-          implicitHeight: Style.space(6)
-          radius: height / 2
-          color: Qt.darker(root.foreground, 3.2)
-
-          Rectangle {
-            id: meterFill
-            width: meterTrack.width * Model.levelFraction(batteryRow.device.level)
-            height: parent.height
-            radius: parent.radius
-            color: batteryRow.low ? root.urgent : root.foreground
-          }
-
-          Rectangle {
-            anchors.fill: meterFill
-            radius: meterFill.radius
-            color: meterTrack.color
-            visible: batteryRow.device.charging
-            opacity: 0
-
-            SequentialAnimation on opacity {
-              running: batteryRow.device.charging
-              loops: Animation.Infinite
-              NumberAnimation { from: 0.0; to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
-              NumberAnimation { from: 0.55; to: 0.0; duration: 900; easing.type: Easing.InOutQuad }
-            }
-          }
-        }
-
-        Text {
-          text: Model.levelText(batteryRow.device.level)
-          color: root.foreground
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          horizontalAlignment: Text.AlignRight
-          Layout.preferredWidth: Style.space(38)
-        }
+      Text {
+        text: Model.levelText(batteryRow.device.level)
+        color: batteryRow.low ? root.urgent : Qt.darker(root.foreground, 1.4)
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        width: Style.space(38)
+        horizontalAlignment: Text.AlignRight
+        anchors.verticalCenter: parent.verticalCenter
       }
     }
   }

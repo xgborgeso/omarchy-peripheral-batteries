@@ -124,6 +124,21 @@ function rowCaption(dev) {
   return kind || transport
 }
 
+function displayName(dev) {
+  var name = String(dev && dev.name || "").trim()
+  name = name.replace(/^(Logitech|Kingston|Razer|SteelSeries|Corsair|Microsoft|Apple|Sony|Samsung|HyperX)\s+/i, "")
+  name = name.replace(/\s+Wireless$/i, "")
+  return name || kindLabel(dev && dev.kind)
+}
+
+function kindGlyph(kind) {
+  if (kind === "mouse") return "󰍽"
+  if (kind === "keyboard") return "󰌌"
+  if (kind === "headset") return "󰋋"
+  if (kind === "controller") return "󰊗"
+  return "󰂂"
+}
+
 function lowestLevel(devices) {
   var lowest = LEVEL_UNKNOWN
   for (var i = 0; i < devices.length; i++) {
@@ -160,6 +175,8 @@ if (typeof module !== "undefined") {
     transportLabel: transportLabel,
     rowLabel: rowLabel,
     rowCaption: rowCaption,
+    displayName: displayName,
+    kindGlyph: kindGlyph,
     lowestLevel: lowestLevel,
     anyLow: anyLow,
     errorText: errorText
