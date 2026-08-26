@@ -1,20 +1,24 @@
 import QtQuick
 import QtQuick.Controls
 import Quickshell
-import Quickshell.Io
 import qs.Commons
-import qs.Ui
+import qs.Ui as Ui
 import "Model.js" as Model
 
-Panel {
+Ui.Panel {
   id: root
   moduleName: "io.github.gabriel.peripherals-battery"
   ipcTarget: "peripherals-battery"
   manageIpc: false
 
+  property var anchorItem: null
+  property var hostWidget: null
+  property var service: null
+  readonly property var barIdentity: hostWidget || root
+  readonly property var svc: service
+
   property int phraseIndex: 0
 
-  readonly property bool hideWhenDisconnected: setting("hideWhenDisconnected", true) === true
   readonly property int lowBatteryPercent: {
     var n = parseInt(String(setting("lowBatteryPercent", 20)), 10)
     return isFinite(n) ? n : 20
@@ -23,11 +27,9 @@ Panel {
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dim: Qt.darker(foreground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property bool devicesPresent: svc.hasDevices
-  readonly property bool anyLow: Model.anyLow(svc.devices, lowBatteryPercent)
-  readonly property color barIconColor: !devicesPresent
-    ? Qt.darker(barForeground, 1.55)
-    : (anyLow ? (bar ? bar.urgent : Color.urgent) : barForeground)
+  readonly property bool hasDevices: svc ? svc.hasDevices : false
+  readonly property string lastError: svc ? String(svc.lastError || "") : ""
+  readonly property bool helperMissing: svc ? svc.helperMissing === true : false
 
   readonly property var activePhrases: [
     "Dongle, engage",
@@ -43,9 +45,9 @@ Panel {
   ]
   readonly property string heroPhraseText: activePhrases[phraseIndex % activePhrases.length]
   readonly property string heroTitle: "Peripherals Battery"
-  readonly property var brandGroups: Model.brandGroups(svc.devices)
-  readonly property string heroMeta: !svc.hasDevices
-    ? (svc.helperMissing ? "Helper not built" : (svc.lastError !== "" ? "Cannot read devices" : "Not connected"))
+  readonly property var brandGroups: Model.brandGroups(svc ? svc.devices : [])
+  readonly property string heroMeta: !hasDevices
+    ? (helperMissing ? "Helper not built" : (lastError !== "" ? "Cannot read devices" : "Not connected"))
     : heroPhraseText
 
   function pickHeroPhrase() {
@@ -57,69 +59,45 @@ Panel {
     phraseIndex = next
   }
 
-  visible: !hideWhenDisconnected || svc.hasDevices || svc.lastError !== "" || svc.helperMissing
-  implicitWidth: visible ? button.implicitWidth : 0
-  implicitHeight: visible ? button.implicitHeight : 0
+  function open() {
+    root.controller.show()
+  }
+
+  function close() {
+    root.controller.hide()
+  }
+
+  function switchPanel(direction) {
+    if (root.bar && typeof root.bar.switchPanelFrom === "function")
+      return root.bar.switchPanelFrom(root.barIdentity, direction)
+    return false
+  }
 
   onOpenedChanged: if (opened) {
     pickHeroPhrase()
     if (panelFlick) panelFlick.contentY = 0
-    svc.refresh()
+    if (svc && typeof svc.refresh === "function") svc.refresh()
     Qt.callLater(function () { keyCatcher.forceActiveFocus() })
   }
 
-  Service {
-    id: svc
-    settings: root.settings
-  }
-
-  IpcHandler {
-    target: root.ipcTarget
-    function open(): void { root.open() }
-    function close(): void { root.close() }
-    function toggle(): void { root.toggle() }
-    function refresh(): string { svc.refresh(); return "ok" }
-    function status(): string {
-      if (!svc.hasDevices) return "disconnected"
-      var parts = []
-      for (var i = 0; i < svc.devices.length; i++) {
-        var d = svc.devices[i]
-        parts.push(d.name + " " + Model.levelText(d.level))
-      }
-      return parts.join(" · ")
-    }
-  }
-
-  BarIconButton {
-    id: button
-    anchors.fill: parent
-    bar: root.bar
-    text: "󰂂"
-    useActiveColor: false
-    foreground: root.barIconColor
-    onPressed: function (buttonCode) {
-      if (buttonCode === Qt.MiddleButton) svc.refresh()
-      else root.toggle()
-    }
-  }
-
-  KeyboardPanel {
+  Ui.KeyboardPanel {
     id: panel
-    anchorItem: button
-    owner: root
+    anchorItem: root.anchorItem
+    owner: root.barIdentity
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(380))
     contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(560))
 
-    PanelKeyCatcher {
+    Ui.PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
       onCloseRequested: root.close()
       onTabRequested: function (direction) { root.switchPanel(direction) }
       onTextKey: function (text) {
-        if (String(text).toLowerCase() === "r") svc.refresh()
+        if (String(text).toLowerCase() === "r" && svc && typeof svc.refresh === "function")
+          svc.refresh()
       }
 
       Flickable {
@@ -138,18 +116,18 @@ Panel {
           width: panelFlick.width
           spacing: Style.space(14)
 
-          PanelHero {
+          Ui.PanelHero {
             id: hero
             width: parent.width
             title: root.heroTitle
             meta: root.heroMeta
             foreground: root.foreground
             fontFamily: root.fontFamily
-            iconOpacity: svc.hasDevices ? 1.0 : 0.5
+            iconOpacity: root.hasDevices ? 1.0 : 0.5
             iconComponent: Component {
               Text {
                 text: "󰂂"
-                color: svc.hasDevices ? root.foreground : root.dim
+                color: root.hasDevices ? root.foreground : root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.display
               }
@@ -157,9 +135,9 @@ Panel {
           }
 
           Text {
-            visible: svc.lastError !== ""
+            visible: root.lastError !== ""
             width: parent.width
-            text: svc.lastError
+            text: root.lastError
             color: root.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -175,7 +153,7 @@ Panel {
               spacing: Style.space(6)
               visible: modelData.devices && modelData.devices.length > 0
 
-              PanelSectionHeader {
+              Ui.PanelSectionHeader {
                 visible: modelData.headerShowsBrand === true && String(modelData.brand || "") !== ""
                 text: String(modelData.brand || "").toUpperCase()
                 foreground: root.foreground
@@ -194,7 +172,7 @@ Panel {
           }
 
           Text {
-            visible: !svc.hasDevices && svc.lastError === ""
+            visible: !root.hasDevices && root.lastError === ""
             width: parent.width
             text: "No wireless peripherals."
             color: root.dim

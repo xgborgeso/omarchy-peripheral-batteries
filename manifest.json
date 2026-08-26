@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "id": "io.github.gabriel.peripherals-battery",
   "name": "Peripherals Battery",
-  "version": "0.1.0",
-  "author": "gabriel",
+  "version": "1.0.0",
+  "author": "Gabriel Borges",
   "license": "MIT",
   "description": "Wireless mice, keyboards, headsets and controllers in the Omarchy bar: presence, battery, and low-battery notifications.",
   "kinds": ["bar-widget"],
   "entryPoints": {
-    "barWidget": "Panel.qml"
+    "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "Peripherals Battery",

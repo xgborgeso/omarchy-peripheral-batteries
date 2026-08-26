@@ -1,38 +1,39 @@
 # Peripherals Battery
 
-Wireless mice, keyboards, headsets and controllers in the Omarchy bar, grouped by brand.
+Wireless mice, keyboards, headsets and controllers in the Omarchy Quattro bar, grouped by brand.
 
-This occupies the same job as `hl.peripheral_battery`. The panel is drawn in the Nothing Audio idiom (hero + labeled meters + charging pulse), and devices without a UPower pack still appear as `--`.
+This occupies the same job as `hl.peripheral_battery`. Devices without a kernel battery pack still appear as `--`. Missing name or brand is placeholdered (`Mouse 1`, `Headset 2`) rather than erroring the widget.
 
-## Install (local)
+Plugins share the long-running Omarchy shell process. This one reads `/sys` through a local helper and never opens `/dev/hidraw`.
+
+## Install
+
+Build the helper, then add the plugin from this folder:
 
 ```sh
-cd helper && cargo build --release && cd ..
+cargo build --release --manifest-path helper/Cargo.toml
 omarchy plugin add /home/gabriel/Work/omarchy-peripherals-battery --enable
 ```
 
-`--enable` places the chip on the right of the bar. Rebuild the helper after changing Rust:
+`--enable` places the chip on the right of the bar. After `plugin add`, the live copy is `~/.config/omarchy/plugins/io.github.gabriel.peripherals-battery/`. Rebuild the helper there too (or copy `helper/target/release/peripherals-status`) after Rust changes:
 
 ```sh
 cargo build --release --manifest-path helper/Cargo.toml
 omarchy restart shell
 ```
 
-The plugin directory is a git clone. After `plugin add`, the live copy is `~/.config/omarchy/plugins/io.github.gabriel.peripherals-battery/`. Copy the helper binary there too, or build inside that clone.
+Optional: gaming headsets such as the PRO X 2 LIGHTSPEED do not publish battery through the kernel. Install [headsetcontrol](https://github.com/Sapd/HeadsetControl) (`omarchy pkg add headsetcontrol`), then unplug and replug the dongle so its udev rules apply. The helper uses it when it is on `PATH`. Do not vendor the binary in this repo.
 
 ## Usage
 
-- Left click the chip: open the panel
-- Middle click: refresh
-- `r`: refresh
-- Esc: close
-- Tab: next stock panel
+Click the bar icon to open or close the details panel. Escape closes it. Middle click or `r` refreshes. Tab moves to the next stock panel.
 
 The icon hides when nothing wireless is present (`hideWhenDisconnected`).
 
-## Settings
+## Configure
 
 ```sh
+omarchy bar move io.github.gabriel.peripherals-battery --section right
 omarchy bar set io.github.gabriel.peripherals-battery hideWhenDisconnected false --json
 omarchy bar set io.github.gabriel.peripherals-battery refreshIntervalSec 15 --json
 ```
@@ -46,16 +47,12 @@ omarchy bar set io.github.gabriel.peripherals-battery refreshIntervalSec 15 --js
 | `notifyOnLow` | true | Desktop notification |
 | `notifyRepeatMinutes` | 0 | Re-notify while still low (0 = once) |
 
-Gaming headsets such as the PRO X 2 LIGHTSPEED do not publish battery through the kernel. Optional: install [headsetcontrol](https://github.com/Sapd/HeadsetControl) (`omarchy pkg add headsetcontrol`), then unplug and replug the dongle so its udev rules apply. The helper uses it when it is on `PATH`. Do not vendor the binary in this repo.
-
-If the kernel gives a name or brand, the panel uses it. If not, it placeholders: `Mouse 1`, `Headset 2`, `Device 1` — no fake brand header, no error. Percent still `--` when unknown. Junk rows are skipped; the widget still opens.
-
 ## What it does not do
 
 - Button remap, DPI, SmartShift, RGB (OpenLogi / Solaar / Piper)
 - Laptop battery (`omarchy.power`)
 - Connect / forget (stock Bluetooth)
-- Remaining runtime. Percent only; no guessed hours and no click-to-cycle readout.
+- Remaining runtime. Percent only; no guessed hours.
 
 ## Remove
 
