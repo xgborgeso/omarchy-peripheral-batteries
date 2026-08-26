@@ -32,9 +32,19 @@ Panel {
   readonly property var activePhrases: [
     "Herding dongles",
     "Counting milliamps",
-    "Watching the wireless",
-    "Keeping charge in sight",
-    "Polling the peripherals"
+    "Dongle, engage",
+    "Live long and charge",
+    "Batteries to warp",
+    "Reverse the polarity",
+    "Wireless, but make it so",
+    "Milliamps to impulse",
+    "HID from hyperspace",
+    "Never tell me the charge",
+    "Set phasers to charge",
+    "It's a mouse, Jim",
+    "No warp without charge",
+    "Tractor beam the dongle",
+    "Auxiliary power online"
   ]
   readonly property string heroPhraseText: activePhrases[phraseIndex % activePhrases.length]
   readonly property string heroTitle: "Peripherals Battery"
@@ -43,11 +53,21 @@ Panel {
     ? (svc.helperMissing ? "Helper not built" : (svc.lastError !== "" ? "Cannot read devices" : "Not connected"))
     : heroPhraseText
 
+  function pickHeroPhrase() {
+    var n = activePhrases.length
+    if (n <= 0) return
+    var next = Math.floor(Math.random() * n)
+    if (next === phraseIndex && n > 1)
+      next = (phraseIndex + 1 + Math.floor(Math.random() * (n - 1))) % n
+    phraseIndex = next
+  }
+
   visible: !hideWhenDisconnected || svc.hasDevices || svc.lastError !== "" || svc.helperMissing
   implicitWidth: visible ? button.implicitWidth : 0
   implicitHeight: visible ? button.implicitHeight : 0
 
   onOpenedChanged: if (opened) {
+    pickHeroPhrase()
     if (panelFlick) panelFlick.contentY = 0
     svc.refresh()
     Qt.callLater(function () { keyCatcher.forceActiveFocus() })
@@ -190,34 +210,6 @@ Panel {
           }
         }
       }
-    }
-  }
-
-  Timer {
-    interval: 5000
-    running: root.opened && svc.hasDevices
-    repeat: true
-    onTriggered: phraseSwap.restart()
-  }
-
-  SequentialAnimation {
-    id: phraseSwap
-    PropertyAnimation {
-      target: hero
-      property: "metaOpacity"
-      to: 0.0
-      duration: 180
-      easing.type: Easing.OutQuad
-    }
-    ScriptAction {
-      script: root.phraseIndex = (root.phraseIndex + 1) % root.activePhrases.length
-    }
-    PropertyAnimation {
-      target: hero
-      property: "metaOpacity"
-      to: 1.0
-      duration: 260
-      easing.type: Easing.InQuad
     }
   }
 
