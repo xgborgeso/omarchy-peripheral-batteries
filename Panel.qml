@@ -7,8 +7,8 @@ import "Model.js" as Model
 
 Ui.Panel {
   id: root
-  moduleName: "io.github.gabriel.peripherals-battery"
-  ipcTarget: "io.github.gabriel.peripherals-battery"
+  moduleName: "io.github.gabriel.peripheral-batteries"
+  ipcTarget: "io.github.gabriel.peripheral-batteries"
   manageIpc: false
 
   property var anchorItem: null
@@ -43,7 +43,7 @@ Ui.Panel {
     "Counting milliamps"
   ]
   readonly property string heroPhraseText: activePhrases[phraseIndex % activePhrases.length]
-  readonly property string heroTitle: "Peripherals Battery"
+  readonly property string heroTitle: "Peripheral Batteries"
   readonly property var brandGroups: Model.brandGroups(svc ? svc.devices : [])
   readonly property string heroMeta: !hasDevices
     ? (helperMissing ? "Helper not built" : (lastError !== "" ? "Cannot read devices" : "Not connected"))

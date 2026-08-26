@@ -104,7 +104,7 @@ Item {
     var urgency = tier === "crit" ? "critical" : "normal"
     var title = dev.name || Model.kindLabel(dev.kind)
     var body = "Battery " + Model.levelText(dev.level)
-    notifyProcess.command = ["notify-send", "-u", urgency, "-a", "Peripherals Battery", "--", title, body]
+    notifyProcess.command = ["notify-send", "-u", urgency, "-a", "Peripheral Batteries", "--", title, body]
     notifyProcess.running = true
   }
 

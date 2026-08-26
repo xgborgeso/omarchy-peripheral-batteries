@@ -1,11 +1,11 @@
-<h1 align="center">Peripherals Battery</h1>
+<h1 align="center">Peripheral Batteries</h1>
 
 <p align="center">
   Battery percent for each wireless peripheral: mouse, keyboard, headset and controller, grouped by brand.
 </p>
 
 <p align="center">
-  <img src="preview.png" alt="The Peripherals Battery panel open in the Omarchy bar" width="420">
+  <img src="preview.png" alt="The Peripheral Batteries panel open in the Omarchy bar" width="420">
 </p>
 
 ## What it shows
@@ -36,19 +36,19 @@ The plugin is a bar widget. `BarWidget.qml` is the chip; it loads `Panel.qml`. A
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/xgborgeso/omarchy-peripherals-battery.git --enable
+omarchy plugin add https://github.com/xgborgeso/omarchy-peripheral-batteries.git --enable
 ```
 
 `--enable` places the chip on the right of the bar. The icon hides when nothing wireless is present (`hideWhenDisconnected`). To keep it visible:
 
 ```bash
-omarchy bar set io.github.gabriel.peripherals-battery hideWhenDisconnected false --json
+omarchy bar set io.github.gabriel.peripheral-batteries hideWhenDisconnected false --json
 ```
 
 ## Remove
 
 ```bash
-omarchy plugin remove io.github.gabriel.peripherals-battery
+omarchy plugin remove io.github.gabriel.peripheral-batteries
 ```
 
 ## Keyboard
@@ -75,8 +75,8 @@ A new hero line is chosen each time the panel opens. It stays until you close.
 | Re-notify every N minutes | 0 | `0` means once. |
 
 ```bash
-omarchy bar move io.github.gabriel.peripherals-battery --section right
-omarchy bar set io.github.gabriel.peripherals-battery refreshIntervalSec 15 --json
+omarchy bar move io.github.gabriel.peripheral-batteries --section right
+omarchy bar set io.github.gabriel.peripheral-batteries refreshIntervalSec 15 --json
 ```
 
 ## Contributing

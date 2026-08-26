@@ -7,7 +7,7 @@ import "Model.js" as Model
 
 Ui.BarWidget {
   id: root
-  moduleName: "io.github.gabriel.peripherals-battery"
+  moduleName: "io.github.gabriel.peripheral-batteries"
 
   readonly property bool hideWhenDisconnected: setting("hideWhenDisconnected", true) === true
   readonly property int lowBatteryPercent: {
@@ -97,7 +97,7 @@ Ui.BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: "󰂂"
-    tooltipText: "Open Peripherals Battery"
+    tooltipText: "Open Peripheral Batteries"
     useActiveColor: false
     foreground: root.barIconColor
     onPressed: function (buttonCode) {
