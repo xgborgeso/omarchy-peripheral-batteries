@@ -48,8 +48,8 @@ rules apply.
 | `notifyRepeatMinutes` | `0` | Re-notify while still low. `0` notifies once. |
 
 ```bash
-omarchy bar set io.github.gabriel.peripheral-batteries hideWhenDisconnected false --json
-omarchy bar move io.github.gabriel.peripheral-batteries --section right
+omarchy bar set io.github.xgborgeso.peripheral-batteries hideWhenDisconnected false --json
+omarchy bar move io.github.xgborgeso.peripheral-batteries --section right
 ```
 
 ## Controls
@@ -63,7 +63,7 @@ Left click opens the panel, middle click refreshes.
 | `Esc` | Close |
 
 The panel is also scriptable:
-`omarchy-shell io.github.gabriel.peripheral-batteries toggle|refresh|status`.
+`omarchy-shell io.github.xgborgeso.peripheral-batteries toggle|refresh|status`.
 
 ## Helper
 
@@ -87,7 +87,7 @@ omarchy plugin validate .
 ## Remove
 
 ```bash
-omarchy plugin remove io.github.gabriel.peripheral-batteries
+omarchy plugin remove io.github.xgborgeso.peripheral-batteries
 ```
 
 ## License

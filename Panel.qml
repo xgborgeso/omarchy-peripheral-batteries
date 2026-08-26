@@ -8,8 +8,8 @@ import "Model.js" as Model
 
 Ui.Panel {
   id: root
-  moduleName: "io.github.gabriel.peripheral-batteries"
-  ipcTarget: "io.github.gabriel.peripheral-batteries"
+  moduleName: "io.github.xgborgeso.peripheral-batteries"
+  ipcTarget: "io.github.xgborgeso.peripheral-batteries"
   manageIpc: false
 
   property int phraseIndex: 0
