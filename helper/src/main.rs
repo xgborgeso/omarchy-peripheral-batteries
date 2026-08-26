@@ -195,9 +195,6 @@ fn parse_uevent(text: &str) -> Option<Hid> {
         }
     }
     let (bus, vid, pid) = parse_hid_id(&hid_id)?;
-    if name.is_empty() {
-        name = format!("{vid:04X}:{pid:04X}");
-    }
     Some(Hid {
         name,
         uniq,
@@ -364,7 +361,7 @@ fn merge(packs: Vec<Pack>, hids: Vec<Hid>) -> Vec<Device> {
                 claimed_serials.push(h.uniq.clone());
             }
         }
-        let name = hid.map(|h| h.name.clone()).unwrap_or_else(|| pack.name.clone());
+        let name = human_name(hid, Some(pack));
         devices.insert(
             id.clone(),
             Device {
@@ -408,7 +405,7 @@ fn merge(packs: Vec<Pack>, hids: Vec<Hid>) -> Vec<Device> {
             id.clone(),
             Device {
                 id,
-                name: hid.name.clone(),
+                name: human_name(Some(hid), None),
                 brand: brand_of(Some(hid), "", &hid.name),
                 kind: kind_of(&hid.name, Some(hid)),
                 transport: transport_of(Some(hid), &hid.name),
@@ -469,7 +466,39 @@ fn brand_of(hid: Option<&Hid>, manufacturer: &str, name: &str) -> String {
     if lower.contains("sony") {
         return "Sony".into();
     }
-    "Other".into()
+    String::new()
+}
+
+fn is_human_name(name: &str) -> bool {
+    let n = name.trim();
+    if n.is_empty() {
+        return false;
+    }
+    if n.len() == 9
+        && n.as_bytes().get(4) == Some(&b':')
+        && n.bytes().all(|b| b.is_ascii_hexdigit() || b == b':')
+    {
+        return false;
+    }
+    let lower = n.to_ascii_lowercase();
+    !lower.starts_with("hidpp_battery") && !lower.starts_with("hidraw")
+}
+
+fn human_name(hid: Option<&Hid>, pack: Option<&Pack>) -> String {
+    if let Some(h) = hid {
+        if is_human_name(&h.name) {
+            return h.name.trim().to_string();
+        }
+    }
+    if let Some(p) = pack {
+        if is_human_name(&p.model) {
+            return p.model.trim().to_string();
+        }
+        if is_human_name(&p.name) && p.name != p.sys_name {
+            return p.name.trim().to_string();
+        }
+    }
+    String::new()
 }
 
 fn status_token(raw: &str) -> String {
@@ -749,10 +778,23 @@ mod tests {
         let devices = merge(vec![pack("hidpp_battery_0", "", "", 42)], vec![]);
         assert_eq!(devices.len(), 1);
         assert_eq!(devices[0].level, 42);
-        assert_eq!(devices[0].brand, "Other");
+        assert_eq!(devices[0].brand, "");
         assert_eq!(devices[0].kind, "unknown");
-        assert!(!devices[0].name.is_empty());
+        assert_eq!(devices[0].name, "");
         assert!(devices[0].available);
+    }
+
+    #[test]
+    fn two_unnamed_packs_still_list() {
+        let devices = merge(
+            vec![
+                pack("hidpp_battery_0", "", "", 10),
+                pack("hidpp_battery_1", "", "", 20),
+            ],
+            vec![],
+        );
+        assert_eq!(devices.len(), 2);
+        assert!(devices.iter().all(|d| d.name.is_empty() && d.brand.is_empty()));
     }
 
     #[test]
@@ -763,7 +805,8 @@ mod tests {
         );
         assert_eq!(devices.len(), 1);
         assert_eq!(devices[0].kind, "mouse");
-        assert_eq!(devices[0].brand, "Other");
+        assert_eq!(devices[0].brand, "");
+        assert_eq!(devices[0].name, "Wireless Mouse");
         assert_eq!(devices[0].transport, "bluetooth");
         assert_eq!(devices[0].level, LEVEL_UNKNOWN);
         assert!(!devices[0].available);
@@ -814,7 +857,8 @@ mod tests {
         );
         assert_eq!(devices.len(), 1, "{devices:?}");
         assert_eq!(devices[0].kind, "unknown");
-        assert_eq!(devices[0].brand, "Other");
+        assert_eq!(devices[0].brand, "");
+        assert_eq!(devices[0].name, "Pro X Wireless");
     }
 
     #[test]
@@ -859,10 +903,10 @@ mod tests {
     }
 
     #[test]
-    fn empty_hid_name_uses_vid_pid() {
+    fn empty_hid_name_still_parses() {
         let hid = parse_uevent("HID_ID=0003:00001532:00000001\nHID_NAME=\nDRIVER=hid-generic\n")
-            .expect("vid:pid fallback");
+            .expect("empty name is allowed");
         assert_eq!(hid.vid, 0x1532);
-        assert!(!hid.name.is_empty());
+        assert!(hid.name.is_empty());
     }
 }

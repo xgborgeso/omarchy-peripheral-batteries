@@ -162,7 +162,8 @@ Panel {
               visible: modelData.devices && modelData.devices.length > 0
 
               PanelSectionHeader {
-                text: String(modelData.brand || "Other").toUpperCase()
+                visible: modelData.headerShowsBrand === true && String(modelData.brand || "") !== ""
+                text: String(modelData.brand || "").toUpperCase()
                 foreground: root.foreground
                 fontFamily: root.fontFamily
               }

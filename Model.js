@@ -32,14 +32,52 @@ function integer(value, fallback) {
   return isFinite(n) ? n : fallback
 }
 
+function isHumanName(name) {
+  var n = String(name || "").trim()
+  if (!n) return false
+  if (/^[0-9A-Fa-f]{4}:[0-9A-Fa-f]{4}$/.test(n)) return false
+  var lower = n.toLowerCase()
+  if (lower.indexOf("hidpp_battery") === 0) return false
+  if (lower.indexOf("hidraw") === 0) return false
+  return true
+}
+
+function isHumanBrand(brand) {
+  var b = String(brand || "").trim()
+  if (!b) return false
+  var lower = b.toLowerCase()
+  return lower !== "other" && lower !== "unknown"
+}
+
+function assignPlaceholders(devices) {
+  var list = devices || []
+  var need = []
+  for (var i = 0; i < list.length; i++) {
+    if (!isHumanBrand(list[i].brand)) list[i].brand = ""
+    if (!isHumanName(list[i].name)) need.push(list[i])
+  }
+  need.sort(function (a, b) {
+    var kind = String(a.kind || "unknown").localeCompare(String(b.kind || "unknown"))
+    if (kind !== 0) return kind
+    return String(a.id || "").localeCompare(String(b.id || ""))
+  })
+  var counts = {}
+  for (var n = 0; n < need.length; n++) {
+    var kindKey = need[n].kind || "unknown"
+    counts[kindKey] = (counts[kindKey] || 0) + 1
+    need[n].name = kindLabel(kindKey) + " " + counts[kindKey]
+  }
+  return list
+}
+
 function device(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null
   var value = defaultDevice()
   value.id = String(raw.id || "")
   value.kind = String(raw.kind || "unknown") || "unknown"
   value.transport = String(raw.transport || "unknown") || "unknown"
-  value.brand = String(raw.brand || "").trim() || "Other"
-  value.name = String(raw.name || "").trim() || kindLabel(value.kind)
+  value.brand = String(raw.brand || "").trim()
+  value.name = String(raw.name || "").trim()
   var level = integer(raw.level, LEVEL_UNKNOWN)
   value.level = (level >= 0 && level <= 100) ? level : LEVEL_UNKNOWN
   var remaining = integer(raw.remaining_sec, LEVEL_UNKNOWN)
@@ -47,7 +85,7 @@ function device(raw) {
   value.status = String(raw.status || "unknown")
   value.charging = raw.charging === true
   value.available = raw.available === true && value.level !== LEVEL_UNKNOWN
-  if (!value.id && value.level === LEVEL_UNKNOWN && !String(raw.name || "").trim()) return null
+  if (!value.id && value.level === LEVEL_UNKNOWN && !value.name) return null
   return value
 }
 
@@ -90,7 +128,7 @@ function parseStatus(raw) {
     var parsedDev = device(list[i])
     if (parsedDev) devices.push(parsedDev)
   }
-  status.devices = devices
+  status.devices = assignPlaceholders(devices)
   status.lastError = errorText(parsed.error)
   return status
 }
@@ -137,6 +175,7 @@ function rowCaption(dev) {
 
 function displayName(dev) {
   var name = String(dev && dev.name || "").trim()
+  if (/^(Mouse|Keyboard|Headset|Controller|Device) \d+$/.test(name)) return name
   name = name.replace(/^(Logitech|Kingston|Razer|SteelSeries|Corsair|Microsoft|Apple|Sony|Samsung|HyperX)\s+/i, "")
   name = name.replace(/\s+Wireless$/i, "")
   return name || kindLabel(dev && dev.kind)
@@ -152,8 +191,7 @@ function kindGlyph(kind) {
 
 function deviceBrand(dev) {
   var brand = String(dev && dev.brand || "").trim()
-  if (brand) return brand
-  return "Other"
+  return isHumanBrand(brand) ? brand : ""
 }
 
 function brandGroups(devices) {
@@ -181,7 +219,8 @@ function brandGroups(devices) {
       devices: rows,
       lowest: lowestLevel(rows),
       allKnown: rows.length > 0 && known === rows.length,
-      headerShowsLevel: false
+      headerShowsLevel: false,
+      headerShowsBrand: brandName !== ""
     })
   }
   return groups
@@ -217,6 +256,9 @@ if (typeof module !== "undefined") {
     defaultStatus: defaultStatus,
     parseStatus: parseStatus,
     device: device,
+    isHumanName: isHumanName,
+    isHumanBrand: isHumanBrand,
+    assignPlaceholders: assignPlaceholders,
     levelText: levelText,
     levelFraction: levelFraction,
     kindLabel: kindLabel,
