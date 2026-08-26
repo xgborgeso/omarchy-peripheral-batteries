@@ -48,6 +48,8 @@ omarchy bar set io.github.gabriel.peripherals-battery refreshIntervalSec 15 --js
 
 Gaming headsets such as the PRO X 2 LIGHTSPEED do not publish battery through the kernel. Optional: install [headsetcontrol](https://github.com/Sapd/HeadsetControl) (`omarchy pkg add headsetcontrol`), then unplug and replug the dongle so its udev rules apply. The helper uses it when it is on `PATH`. Do not vendor the binary in this repo.
 
+Identification uses only what the kernel (or optional `headsetcontrol`) already exposed. Missing name → `Device`, missing brand → `Other`, missing kind → battery glyph, missing percent → `--`. Logitech name heuristics stay on Logitech USB VIDs. One bad row is skipped; the panel still opens.
+
 ## What it does not do
 
 - Button remap, DPI, SmartShift, RGB (OpenLogi / Solaar / Piper)

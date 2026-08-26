@@ -97,4 +97,34 @@ assert.ok(failed.lastError.indexOf("boom") >= 0)
 const laptopExcluded = Model.parseStatus(JSON.stringify({ ok: true, schema_version: 1, devices: [] }))
 assert.strictEqual(laptopExcluded.devices.length, 0)
 
+const unnamed = Model.parseStatus(JSON.stringify({
+  ok: true,
+  schema_version: 1,
+  devices: [
+    { id: "pack:anon", name: "", brand: "", kind: "", level: 42, available: true },
+    "not-a-device",
+    null
+  ]
+}))
+assert.strictEqual(unnamed.ok, true)
+assert.strictEqual(unnamed.devices.length, 1)
+assert.strictEqual(unnamed.devices[0].brand, "Other")
+assert.strictEqual(unnamed.devices[0].kind, "unknown")
+assert.strictEqual(Model.displayName(unnamed.devices[0]), "Device")
+assert.strictEqual(Model.deviceBrand(unnamed.devices[0]), "Other")
+assert.strictEqual(Model.kindGlyph("unknown"), "󰂂")
+assert.strictEqual(Model.levelText(unnamed.devices[0].level), "42%")
+const otherGroup = Model.brandGroups(unnamed.devices)
+assert.strictEqual(otherGroup.length, 1)
+assert.strictEqual(otherGroup[0].brand, "Other")
+
+const razer = Model.parseStatus(JSON.stringify({
+  ok: true,
+  schema_version: 1,
+  devices: [{ id: "r", name: "DeathAdder V3 Pro", brand: "Razer", kind: "unknown", level: 80, available: true }]
+}))
+assert.strictEqual(Model.displayName(razer.devices[0]), "DeathAdder V3 Pro")
+assert.strictEqual(Model.deviceBrand(razer.devices[0]), "Razer")
+assert.strictEqual(Model.kindGlyph(razer.devices[0].kind), "󰂂")
+
 console.log("model.test.js ok")

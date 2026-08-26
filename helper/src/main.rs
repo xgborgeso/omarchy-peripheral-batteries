@@ -194,10 +194,10 @@ fn parse_uevent(text: &str) -> Option<Hid> {
             hid_id = rest.trim().to_string();
         }
     }
-    if name.is_empty() {
-        return None;
-    }
     let (bus, vid, pid) = parse_hid_id(&hid_id)?;
+    if name.is_empty() {
+        name = format!("{vid:04X}:{pid:04X}");
+    }
     Some(Hid {
         name,
         uniq,
@@ -271,16 +271,22 @@ fn kind_of(name: &str, hid: Option<&Hid>) -> String {
     if n.contains("controller") || n.contains("gamepad") {
         return "controller".into();
     }
-    if n.contains("mouse") || n.contains("pro x") && !n.contains("lightspeed") {
+    if n.contains("mouse") {
         return "mouse".into();
     }
-    if let Some(hid) = hid {
-        if hid.driver == "logitech-hidpp-device" {
+    // Logitech HID names often omit "mouse"/"headset". Do not apply to other VIDs.
+    if hid.map(|h| h.vid) == Some(LOGITECH_VID) {
+        if n.contains("pro x") && !n.contains("lightspeed") {
             return "mouse".into();
         }
-        let hn = hid.name.to_ascii_lowercase();
-        if hn.contains("lightspeed") && !hn.contains("mouse") {
-            return "headset".into();
+        if let Some(hid) = hid {
+            if hid.driver == "logitech-hidpp-device" {
+                return "mouse".into();
+            }
+            let hn = hid.name.to_ascii_lowercase();
+            if hn.contains("lightspeed") && !hn.contains("mouse") {
+                return "headset".into();
+            }
         }
     }
     "unknown".into()
@@ -426,17 +432,28 @@ fn merge(packs: Vec<Pack>, hids: Vec<Hid>) -> Vec<Device> {
     out
 }
 
+fn brand_from_vid(vid: u16) -> Option<&'static str> {
+    match vid {
+        0x046d => Some("Logitech"),
+        0x1532 => Some("Razer"),
+        0x054c => Some("Sony"),
+        0x1038 => Some("SteelSeries"),
+        0x045e => Some("Microsoft"),
+        0x05ac => Some("Apple"),
+        0x0951 => Some("HyperX"),
+        0x1b1c => Some("Corsair"),
+        _ => None,
+    }
+}
+
 fn brand_of(hid: Option<&Hid>, manufacturer: &str, name: &str) -> String {
     let from_mfr = manufacturer.trim();
     if !from_mfr.is_empty() && !from_mfr.eq_ignore_ascii_case("unknown") {
         return title_brand(from_mfr);
     }
     if let Some(h) = hid {
-        if h.vid == LOGITECH_VID {
-            return "Logitech".into();
-        }
-        if h.vid == HYPERX_VID {
-            return "HyperX".into();
+        if let Some(brand) = brand_from_vid(h.vid) {
+            return brand.into();
         }
     }
     let lower = name.to_ascii_lowercase();
@@ -566,15 +583,43 @@ fn apply_headsetcontrol_json(devices: &mut [Device], parsed: &serde_json::Value)
             if device.kind != "headset" {
                 continue;
             }
-            let name = device.name.to_ascii_lowercase();
-            if name.contains(&product) || product.contains(&name) || product.contains("pro x 2")
-            {
+            if product_matches(&device.name, &product) {
                 device.level = level;
                 device.charging = charging;
                 device.available = true;
             }
         }
     }
+}
+
+fn normalize_product(s: &str) -> String {
+    let mut n = s.to_ascii_lowercase();
+    for w in [
+        "logitech",
+        "kingston",
+        "razer",
+        "steelseries",
+        "corsair",
+        "microsoft",
+        "apple",
+        "sony",
+        "samsung",
+        "hyperx",
+        "wireless",
+        "usb",
+    ] {
+        n = n.replace(w, " ");
+    }
+    n.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn product_matches(name: &str, product: &str) -> bool {
+    let a = normalize_product(name);
+    let b = normalize_product(product);
+    if a.is_empty() || b.is_empty() {
+        return false;
+    }
+    a == b || a.contains(&b) || b.contains(&a)
 }
 
 fn eq_serial(a: &str, b: &str) -> bool {
@@ -666,5 +711,158 @@ mod tests {
     fn empty_sysfs_is_ok() {
         let devices = collect_from(&fixture("empty")).unwrap();
         assert!(devices.is_empty());
+    }
+
+    fn pack(sys: &str, model: &str, mfr: &str, level: i32) -> Pack {
+        Pack {
+            name: if model.is_empty() {
+                sys.into()
+            } else {
+                model.into()
+            },
+            manufacturer: mfr.into(),
+            model: model.into(),
+            serial: String::new(),
+            level,
+            remaining_sec: LEVEL_UNKNOWN,
+            status: "discharging".into(),
+            charging: false,
+            scope: "Device".into(),
+            type_name: "Battery".into(),
+            sys_name: sys.into(),
+        }
+    }
+
+    fn hid(name: &str, vid: u16, pid: u16, bus: u16, driver: &str) -> Hid {
+        Hid {
+            name: name.into(),
+            uniq: String::new(),
+            vid,
+            pid,
+            bus,
+            driver: driver.into(),
+        }
+    }
+
+    #[test]
+    fn unnamed_device_pack_still_lists() {
+        let devices = merge(vec![pack("hidpp_battery_0", "", "", 42)], vec![]);
+        assert_eq!(devices.len(), 1);
+        assert_eq!(devices[0].level, 42);
+        assert_eq!(devices[0].brand, "Other");
+        assert_eq!(devices[0].kind, "unknown");
+        assert!(!devices[0].name.is_empty());
+        assert!(devices[0].available);
+    }
+
+    #[test]
+    fn bluetooth_mouse_unknown_vid() {
+        let devices = merge(
+            vec![],
+            vec![hid("Wireless Mouse", 0x1234, 0x0001, 0x0005, "hid-generic")],
+        );
+        assert_eq!(devices.len(), 1);
+        assert_eq!(devices[0].kind, "mouse");
+        assert_eq!(devices[0].brand, "Other");
+        assert_eq!(devices[0].transport, "bluetooth");
+        assert_eq!(devices[0].level, LEVEL_UNKNOWN);
+        assert!(!devices[0].available);
+    }
+
+    #[test]
+    fn wired_usb_keyboard_is_ignored() {
+        let devices = merge(
+            vec![],
+            vec![hid("Generic Keyboard", 0x04d9, 0x0001, 0x0003, "hid-generic")],
+        );
+        assert!(devices.is_empty(), "{devices:?}");
+    }
+
+    #[test]
+    fn razer_pack_uses_manufacturer() {
+        let devices = merge(vec![pack("hid-1", "DeathAdder V3 Pro", "Razer", 80)], vec![]);
+        assert_eq!(devices.len(), 1);
+        assert_eq!(devices[0].brand, "Razer");
+        assert_eq!(devices[0].kind, "unknown");
+        assert_eq!(devices[0].level, 80);
+        assert_eq!(devices[0].name, "DeathAdder V3 Pro");
+    }
+
+    #[test]
+    fn sony_dualsense_bluetooth() {
+        let devices = merge(
+            vec![],
+            vec![hid(
+                "Sony Interactive Entertainment DualSense Wireless Controller",
+                0x054c,
+                0x0ce6,
+                0x0005,
+                "sony",
+            )],
+        );
+        assert_eq!(devices.len(), 1);
+        assert_eq!(devices[0].brand, "Sony");
+        assert_eq!(devices[0].kind, "controller");
+        assert_eq!(devices[0].transport, "bluetooth");
+    }
+
+    #[test]
+    fn logitech_kind_heuristics_do_not_apply_to_other_vids() {
+        let devices = merge(
+            vec![],
+            vec![hid("Pro X Wireless", 0x1234, 0x0002, 0x0003, "hid-generic")],
+        );
+        assert_eq!(devices.len(), 1, "{devices:?}");
+        assert_eq!(devices[0].kind, "unknown");
+        assert_eq!(devices[0].brand, "Other");
+    }
+
+    #[test]
+    fn sibling_survives_unrelated_hid() {
+        let devices = merge(
+            vec![pack("ps-mouse", "Wireless Mouse", "Acme", 12)],
+            vec![hid("ITE Device", ITE_VID, 0x0001, 0x0003, "hid-generic")],
+        );
+        assert_eq!(devices.len(), 1);
+        assert_eq!(devices[0].level, 12);
+        assert_eq!(devices[0].brand, "Acme");
+        assert_eq!(devices[0].kind, "mouse");
+    }
+
+    #[test]
+    fn headsetcontrol_does_not_fill_unrelated_headset() {
+        let mut devices = vec![
+            stub("Logitech PRO X 2 LIGHTSPEED", "headset", -1),
+            Device {
+                id: "steel".into(),
+                name: "SteelSeries Arctis Nova".into(),
+                brand: "SteelSeries".into(),
+                kind: "headset".into(),
+                transport: "usb".into(),
+                level: LEVEL_UNKNOWN,
+                remaining_sec: LEVEL_UNKNOWN,
+                status: "unknown".into(),
+                charging: false,
+                available: false,
+            },
+        ];
+        let parsed = serde_json::json!({
+            "devices": [{
+                "product": "Logitech G PRO X 2 LIGHTSPEED",
+                "battery": { "level": 67, "status": "BATTERY_AVAILABLE" }
+            }]
+        });
+        apply_headsetcontrol_json(&mut devices, &parsed);
+        assert_eq!(devices[0].level, 67);
+        assert_eq!(devices[1].level, LEVEL_UNKNOWN);
+        assert!(!devices[1].available);
+    }
+
+    #[test]
+    fn empty_hid_name_uses_vid_pid() {
+        let hid = parse_uevent("HID_ID=0003:00001532:00000001\nHID_NAME=\nDRIVER=hid-generic\n")
+            .expect("vid:pid fallback");
+        assert_eq!(hid.vid, 0x1532);
+        assert!(!hid.name.is_empty());
     }
 }

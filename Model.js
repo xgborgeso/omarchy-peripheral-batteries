@@ -33,13 +33,13 @@ function integer(value, fallback) {
 }
 
 function device(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null
   var value = defaultDevice()
-  if (!raw || typeof raw !== "object") return value
   value.id = String(raw.id || "")
-  value.name = String(raw.name || "")
-  value.brand = String(raw.brand || "")
-  value.kind = String(raw.kind || "unknown")
-  value.transport = String(raw.transport || "unknown")
+  value.kind = String(raw.kind || "unknown") || "unknown"
+  value.transport = String(raw.transport || "unknown") || "unknown"
+  value.brand = String(raw.brand || "").trim() || "Other"
+  value.name = String(raw.name || "").trim() || kindLabel(value.kind)
   var level = integer(raw.level, LEVEL_UNKNOWN)
   value.level = (level >= 0 && level <= 100) ? level : LEVEL_UNKNOWN
   var remaining = integer(raw.remaining_sec, LEVEL_UNKNOWN)
@@ -47,6 +47,7 @@ function device(raw) {
   value.status = String(raw.status || "unknown")
   value.charging = raw.charging === true
   value.available = raw.available === true && value.level !== LEVEL_UNKNOWN
+  if (!value.id && value.level === LEVEL_UNKNOWN && !String(raw.name || "").trim()) return null
   return value
 }
 
@@ -85,7 +86,10 @@ function parseStatus(raw) {
   status.ok = true
   var list = Array.isArray(parsed.devices) ? parsed.devices : []
   var devices = []
-  for (var i = 0; i < list.length; i++) devices.push(device(list[i]))
+  for (var i = 0; i < list.length; i++) {
+    var parsedDev = device(list[i])
+    if (parsedDev) devices.push(parsedDev)
+  }
   status.devices = devices
   status.lastError = errorText(parsed.error)
   return status
@@ -149,8 +153,6 @@ function kindGlyph(kind) {
 function deviceBrand(dev) {
   var brand = String(dev && dev.brand || "").trim()
   if (brand) return brand
-  var name = String(dev && dev.name || "")
-  if (/logitech/i.test(name)) return "Logitech"
   return "Other"
 }
 
