@@ -1,7 +1,7 @@
 <h1 align="center">Peripherals Battery</h1>
 
 <p align="center">
-  Battery percent for each wireless mouse, keyboard, headset and controller, grouped by brand, <code>--</code> when the kernel has no number, drawn in Omarchy's own panel idiom.
+  Battery percent for each wireless peripheral: mouse, keyboard, headset and controller, grouped by brand.
 </p>
 
 <p align="center">
