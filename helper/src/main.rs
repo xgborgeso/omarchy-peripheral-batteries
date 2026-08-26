@@ -22,6 +22,7 @@ const UNIFYING_PIDS: &[u16] = &[0xc52b, 0xc532, 0xc537];
 struct Device {
     id: String,
     name: String,
+    brand: String,
     kind: String,
     transport: String,
     level: i32,
@@ -60,12 +61,15 @@ struct Pack {
 
 fn main() {
     let status = match collect() {
-        Ok(devices) => Status {
-            ok: true,
-            schema_version: SCHEMA_VERSION,
-            error: String::new(),
-            devices,
-        },
+        Ok(mut devices) => {
+            enrich_headsetcontrol(&mut devices);
+            Status {
+                ok: true,
+                schema_version: SCHEMA_VERSION,
+                error: String::new(),
+                devices,
+            }
+        }
         Err(err) => Status {
             ok: false,
             schema_version: SCHEMA_VERSION,
@@ -352,6 +356,7 @@ fn merge(packs: Vec<Pack>, hids: Vec<Hid>) -> Vec<Device> {
             id.clone(),
             Device {
                 id,
+                brand: brand_of(hid, &pack.manufacturer, &name),
                 kind: kind_of(&name, hid),
                 transport: transport_of(hid, &name),
                 name,
@@ -389,6 +394,7 @@ fn merge(packs: Vec<Pack>, hids: Vec<Hid>) -> Vec<Device> {
             Device {
                 id,
                 name: hid.name.clone(),
+                brand: brand_of(Some(hid), "", &hid.name),
                 kind: kind_of(&hid.name, Some(hid)),
                 transport: transport_of(Some(hid), &hid.name),
                 level: LEVEL_UNKNOWN,
@@ -399,9 +405,112 @@ fn merge(packs: Vec<Pack>, hids: Vec<Hid>) -> Vec<Device> {
     }
 
     let mut out: Vec<Device> = devices.into_values().collect();
-    out.sort_by(|a, b| a.kind.cmp(&b.kind).then(a.name.cmp(&b.name)));
-    let _ = packs.iter().map(|p| (&p.manufacturer, &p.type_name)).count();
+    out.sort_by(|a, b| {
+        a.brand
+            .cmp(&b.brand)
+            .then(a.kind.cmp(&b.kind))
+            .then(a.name.cmp(&b.name))
+    });
+    let _ = packs.iter().map(|p| &p.type_name).count();
     out
+}
+
+fn brand_of(hid: Option<&Hid>, manufacturer: &str, name: &str) -> String {
+    let from_mfr = manufacturer.trim();
+    if !from_mfr.is_empty() && !from_mfr.eq_ignore_ascii_case("unknown") {
+        return title_brand(from_mfr);
+    }
+    if let Some(h) = hid {
+        if h.vid == LOGITECH_VID {
+            return "Logitech".into();
+        }
+        if h.vid == HYPERX_VID {
+            return "HyperX".into();
+        }
+    }
+    let lower = name.to_ascii_lowercase();
+    if lower.contains("logitech") {
+        return "Logitech".into();
+    }
+    if lower.contains("razer") {
+        return "Razer".into();
+    }
+    if lower.contains("steelseries") {
+        return "SteelSeries".into();
+    }
+    if lower.contains("sony") {
+        return "Sony".into();
+    }
+    "Other".into()
+}
+
+fn title_brand(value: &str) -> String {
+    let mut chars = value.chars();
+    match chars.next() {
+        Some(c) => c.to_uppercase().collect::<String>() + &chars.as_str().to_ascii_lowercase(),
+        None => "Other".into(),
+    }
+}
+
+/// Optional: HeadsetControl talks the vendor HID the kernel does not export.
+/// Missing binary or hidraw permission leaves the row as unknown.
+fn enrich_headsetcontrol(devices: &mut [Device]) {
+    let output = std::process::Command::new("headsetcontrol")
+        .args(["-b", "-o", "json"])
+        .output();
+    let Ok(output) = output else {
+        return;
+    };
+    if !output.status.success() {
+        return;
+    }
+    let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&output.stdout) else {
+        return;
+    };
+    let list = parsed
+        .get("devices")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    for entry in list {
+        let product = entry
+            .get("product")
+            .or_else(|| entry.get("device"))
+            .or_else(|| entry.get("name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if product.is_empty() {
+            continue;
+        }
+        let battery = entry.get("battery").cloned().unwrap_or(entry.clone());
+        let level = battery
+            .get("level")
+            .or_else(|| battery.get("percentage"))
+            .and_then(|v| v.as_i64())
+            .map(|n| n as i32)
+            .filter(|n| (0..=100).contains(n));
+        let Some(level) = level else {
+            continue;
+        };
+        let charging = battery
+            .get("status")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_ascii_lowercase().contains("charg"))
+            .unwrap_or(false);
+        for device in devices.iter_mut() {
+            if device.kind != "headset" {
+                continue;
+            }
+            let name = device.name.to_ascii_lowercase();
+            if name.contains(&product) || product.contains(&name) || product.contains("pro x 2")
+            {
+                device.level = level;
+                device.charging = charging;
+                device.available = true;
+            }
+        }
+    }
 }
 
 fn eq_serial(a: &str, b: &str) -> bool {
@@ -446,6 +555,8 @@ mod tests {
         assert_eq!(headset.level, -1);
         assert!(!headset.available);
         assert_eq!(headset.kind, "headset");
+        assert_eq!(mouse.brand, "Logitech");
+        assert_eq!(headset.brand, "Logitech");
     }
 
     #[test]

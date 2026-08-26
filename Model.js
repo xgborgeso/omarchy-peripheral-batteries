@@ -7,6 +7,7 @@ function defaultDevice() {
   return {
     id: "",
     name: "",
+    brand: "",
     kind: "unknown",
     transport: "unknown",
     level: LEVEL_UNKNOWN,
@@ -34,6 +35,7 @@ function device(raw) {
   if (!raw || typeof raw !== "object") return value
   value.id = String(raw.id || "")
   value.name = String(raw.name || "")
+  value.brand = String(raw.brand || "")
   value.kind = String(raw.kind || "unknown")
   value.transport = String(raw.transport || "unknown")
   var level = integer(raw.level, LEVEL_UNKNOWN)
@@ -139,6 +141,44 @@ function kindGlyph(kind) {
   return "󰂂"
 }
 
+function deviceBrand(dev) {
+  var brand = String(dev && dev.brand || "").trim()
+  if (brand) return brand
+  var name = String(dev && dev.name || "")
+  if (/logitech/i.test(name)) return "Logitech"
+  return "Other"
+}
+
+function brandGroups(devices) {
+  var list = devices || []
+  var order = []
+  var map = {}
+  for (var i = 0; i < list.length; i++) {
+    var brand = deviceBrand(list[i])
+    if (!map[brand]) {
+      map[brand] = []
+      order.push(brand)
+    }
+    map[brand].push(list[i])
+  }
+  var groups = []
+  for (var g = 0; g < order.length; g++) {
+    var brandName = order[g]
+    var rows = map[brandName]
+    var known = 0
+    for (var r = 0; r < rows.length; r++) {
+      if (rows[r].level !== LEVEL_UNKNOWN) known++
+    }
+    groups.push({
+      brand: brandName,
+      devices: rows,
+      lowest: lowestLevel(rows),
+      allKnown: rows.length > 0 && known === rows.length
+    })
+  }
+  return groups
+}
+
 function lowestLevel(devices) {
   var lowest = LEVEL_UNKNOWN
   for (var i = 0; i < devices.length; i++) {
@@ -177,6 +217,8 @@ if (typeof module !== "undefined") {
     rowCaption: rowCaption,
     displayName: displayName,
     kindGlyph: kindGlyph,
+    deviceBrand: deviceBrand,
+    brandGroups: brandGroups,
     lowestLevel: lowestLevel,
     anyLow: anyLow,
     errorText: errorText

@@ -11,6 +11,7 @@ function sample() {
         id: "pack:aa-bb-cc-dd",
         name: "Logitech PRO X",
         kind: "mouse",
+        brand: "Logitech",
         transport: "lightspeed",
         level: 77,
         charging: false,
@@ -20,6 +21,7 @@ function sample() {
         id: "hid:046d:0af7",
         name: "Logitech PRO X 2 LIGHTSPEED",
         kind: "headset",
+        brand: "Logitech",
         transport: "lightspeed",
         level: -1,
         charging: false,
@@ -44,6 +46,11 @@ assert.strictEqual(Model.rowLabel(ok.devices[1]), "Logitech PRO X 2 LIGHTSPEED")
 assert.strictEqual(Model.displayName(ok.devices[0]), "PRO X")
 assert.strictEqual(Model.displayName(ok.devices[1]), "PRO X 2 LIGHTSPEED")
 assert.strictEqual(Model.kindGlyph("headset"), "󰋋")
+const groups = Model.brandGroups(ok.devices)
+assert.strictEqual(groups.length, 1)
+assert.strictEqual(groups[0].brand, "Logitech")
+assert.strictEqual(groups[0].devices.length, 2)
+assert.strictEqual(groups[0].allKnown, false)
 
 const empty = Model.parseStatus("")
 assert.strictEqual(empty.ok, false)

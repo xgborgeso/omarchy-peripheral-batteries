@@ -38,9 +38,8 @@ Panel {
     "Minding the meters"
   ]
   readonly property string heroPhraseText: activePhrases[phraseIndex % activePhrases.length]
-  readonly property string heroTitle: svc.devices.length === 1
-    ? (svc.devices[0].name || "Peripherals")
-    : "Peripherals"
+  readonly property string heroTitle: "Peripherals Battery"
+  readonly property var brandGroups: Model.brandGroups(svc.devices)
   readonly property string heroMeta: !svc.hasDevices
     ? (svc.helperMissing ? "Helper not built" : (svc.lastError !== "" ? "Cannot read devices" : "Not connected"))
     : heroPhraseText
@@ -154,44 +153,48 @@ Panel {
             wrapMode: Text.WordWrap
           }
 
-          Column {
-            visible: svc.hasDevices
-            width: parent.width
-            spacing: Style.space(6)
-
-            Item {
+          Repeater {
+            model: root.brandGroups
+            Column {
+              required property var modelData
               width: parent.width
-              implicitHeight: Math.max(batteryHeader.implicitHeight, batteryPercent.implicitHeight)
+              spacing: Style.space(6)
+              visible: modelData.devices && modelData.devices.length > 0
 
-              PanelSectionHeader {
-                id: batteryHeader
-                text: "BATTERY"
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-              }
-
-              Text {
-                id: batteryPercent
-                visible: Model.lowestLevel(svc.devices) !== Model.LEVEL_UNKNOWN
-                text: Model.levelText(Model.lowestLevel(svc.devices))
-                color: Qt.darker(root.foreground, 1.4)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                font.bold: true
-                anchors.right: parent.right
-                anchors.rightMargin: Style.space(6)
-                anchors.verticalCenter: parent.verticalCenter
-              }
-            }
-
-            Repeater {
-              model: svc.devices
-              BatteryRow {
-                required property var modelData
+              Item {
                 width: parent.width
-                device: modelData
+                implicitHeight: Math.max(brandHeader.implicitHeight, brandPercent.implicitHeight)
+
+                PanelSectionHeader {
+                  id: brandHeader
+                  text: String(modelData.brand || "Other").toUpperCase()
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                  anchors.left: parent.left
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Text {
+                  id: brandPercent
+                  visible: modelData.allKnown === true
+                  text: Model.levelText(modelData.lowest)
+                  color: Qt.darker(root.foreground, 1.4)
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  font.bold: true
+                  anchors.right: parent.right
+                  anchors.rightMargin: Style.space(6)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+              }
+
+              Repeater {
+                model: modelData.devices
+                BatteryRow {
+                  required property var modelData
+                  width: parent.width
+                  device: modelData
+                }
               }
             }
           }

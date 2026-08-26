@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "io.github.gabriel.peripherals-battery",
-  "name": "Peripherals",
+  "name": "Peripherals Battery",
   "version": "0.1.0",
   "author": "gabriel",
   "license": "MIT",
@@ -11,8 +11,8 @@
     "barWidget": "Panel.qml"
   },
   "barWidget": {
-    "displayName": "Peripherals",
-    "description": "Battery and presence for wireless peripherals.",
+    "displayName": "Peripherals Battery",
+    "description": "Battery and presence for wireless peripherals, grouped by brand.",
     "category": "Hardware",
     "allowMultiple": false,
     "defaultSection": "right",
