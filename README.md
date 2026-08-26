@@ -15,13 +15,6 @@
 - **Placeholders** when the name or brand is missing: `Mouse 1`, `Headset 2`, `Device 1`. Missing identity never errors the widget. Missing percent is `--`.
 - **Low-battery colour and a desktop notification**, using the same warning / critical thresholds you set on the bar.
 
-## Deliberately absent
-
-- **Remaining runtime.** The kernel almost never publishes discharge current for these packs, and marketing hours for a named SKU are not safe to assume for every user's hardware.
-- **Button remap, DPI, SmartShift, RGB.** That is OpenLogi, Solaar, or Piper.
-- **Laptop battery.** That is `omarchy.power`.
-- **Connect / forget.** Stock Bluetooth.
-
 ## Requirements
 
 - Omarchy 4 (Quattro). Python 3 is already on the system; the helper uses the standard library only.
