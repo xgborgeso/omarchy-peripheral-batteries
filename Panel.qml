@@ -12,8 +12,6 @@ Panel {
   ipcTarget: "peripherals-battery"
   manageIpc: false
 
-  property int phraseIndex: 0
-
   readonly property bool hideWhenDisconnected: setting("hideWhenDisconnected", true) === true
   readonly property int lowBatteryPercent: {
     var n = parseInt(String(setting("lowBatteryPercent", 20)), 10)
@@ -29,20 +27,11 @@ Panel {
     ? Qt.darker(barForeground, 1.55)
     : (anyLow ? (bar ? bar.urgent : Color.urgent) : barForeground)
 
-  readonly property var activePhrases: [
-    "Herding dongles",
-    "Counting milliamps",
-    "Watching the wireless",
-    "Keeping charge in sight",
-    "Polling the peripherals",
-    "Minding the meters"
-  ]
-  readonly property string heroPhraseText: activePhrases[phraseIndex % activePhrases.length]
   readonly property string heroTitle: "Peripherals Battery"
   readonly property var brandGroups: Model.brandGroups(svc.devices)
   readonly property string heroMeta: !svc.hasDevices
     ? (svc.helperMissing ? "Helper not built" : (svc.lastError !== "" ? "Cannot read devices" : "Not connected"))
-    : heroPhraseText
+    : ""
 
   visible: !hideWhenDisconnected || svc.hasDevices || svc.lastError !== "" || svc.helperMissing
   implicitWidth: visible ? button.implicitWidth : 0
@@ -191,34 +180,6 @@ Panel {
           }
         }
       }
-    }
-  }
-
-  Timer {
-    interval: 5000
-    running: root.opened && svc.hasDevices
-    repeat: true
-    onTriggered: phraseSwap.restart()
-  }
-
-  SequentialAnimation {
-    id: phraseSwap
-    PropertyAnimation {
-      target: hero
-      property: "metaOpacity"
-      to: 0.0
-      duration: 180
-      easing.type: Easing.OutQuad
-    }
-    ScriptAction {
-      script: root.phraseIndex = (root.phraseIndex + 1) % root.activePhrases.length
-    }
-    PropertyAnimation {
-      target: hero
-      property: "metaOpacity"
-      to: 1.0
-      duration: 260
-      easing.type: Easing.InQuad
     }
   }
 
