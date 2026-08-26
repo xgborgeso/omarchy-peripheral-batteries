@@ -527,6 +527,10 @@ fn enrich_headsetcontrol(devices: &mut [Device]) {
     let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&output.stdout) else {
         return;
     };
+    apply_headsetcontrol_json(devices, &parsed);
+}
+
+fn apply_headsetcontrol_json(devices: &mut [Device], parsed: &serde_json::Value) {
     let list = parsed
         .get("devices")
         .and_then(|v| v.as_array())
@@ -617,6 +621,39 @@ mod tests {
         assert_eq!(headset.kind, "headset");
         assert_eq!(mouse.brand, "Logitech");
         assert_eq!(headset.brand, "Logitech");
+    }
+
+    fn stub(name: &str, kind: &str, level: i32) -> Device {
+        Device {
+            id: name.into(),
+            name: name.into(),
+            brand: "Logitech".into(),
+            kind: kind.into(),
+            transport: "lightspeed".into(),
+            level,
+            remaining_sec: -1,
+            status: "discharging".into(),
+            charging: false,
+            available: level >= 0,
+        }
+    }
+
+    #[test]
+    fn headsetcontrol_json_fills_headset_not_mouse() {
+        let mut devices = vec![
+            stub("Logitech PRO X", "mouse", 75),
+            stub("Logitech PRO X 2 LIGHTSPEED", "headset", -1),
+        ];
+        let parsed = serde_json::json!({
+            "devices": [{
+                "product": "Logitech G PRO X 2 LIGHTSPEED",
+                "battery": { "level": 67, "status": "BATTERY_AVAILABLE" }
+            }]
+        });
+        apply_headsetcontrol_json(&mut devices, &parsed);
+        assert_eq!(devices[0].level, 75);
+        assert_eq!(devices[1].level, 67);
+        assert!(devices[1].available);
     }
 
     #[test]

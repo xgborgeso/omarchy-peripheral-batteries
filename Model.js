@@ -225,7 +225,8 @@ function brandGroups(devices) {
       brand: brandName,
       devices: rows,
       lowest: lowestLevel(rows),
-      allKnown: rows.length > 0 && known === rows.length
+      allKnown: rows.length > 0 && known === rows.length,
+      headerShowsLevel: false
     })
   }
   return groups

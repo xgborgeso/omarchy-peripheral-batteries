@@ -178,37 +178,10 @@ Panel {
               spacing: Style.space(6)
               visible: modelData.devices && modelData.devices.length > 0
 
-              Item {
-                width: parent.width
-                implicitHeight: Math.max(brandHeader.implicitHeight, brandPercent.implicitHeight)
-
-                PanelSectionHeader {
-                  id: brandHeader
-                  text: String(modelData.brand || "Other").toUpperCase()
-                  foreground: root.foreground
-                  fontFamily: root.fontFamily
-                  anchors.left: parent.left
-                  anchors.verticalCenter: parent.verticalCenter
-                }
-
-                Text {
-                  id: brandPercent
-                  visible: modelData.allKnown === true && root.levelDisplay === "percent"
-                  text: Model.levelText(modelData.lowest)
-                  color: Qt.darker(root.foreground, 1.4)
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                  font.bold: true
-                  anchors.right: parent.right
-                  anchors.rightMargin: Style.space(6)
-                  anchors.verticalCenter: parent.verticalCenter
-
-                  MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.cycleLevelDisplay()
-                  }
-                }
+              PanelSectionHeader {
+                text: String(modelData.brand || "Other").toUpperCase()
+                foreground: root.foreground
+                fontFamily: root.fontFamily
               }
 
               Repeater {

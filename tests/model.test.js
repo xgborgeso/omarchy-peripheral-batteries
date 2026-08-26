@@ -53,6 +53,24 @@ assert.strictEqual(groups.length, 1)
 assert.strictEqual(groups[0].brand, "Logitech")
 assert.strictEqual(groups[0].devices.length, 2)
 assert.strictEqual(groups[0].allKnown, false)
+assert.strictEqual(groups[0].headerShowsLevel, false)
+
+const bothKnown = Model.parseStatus(JSON.stringify({
+  ok: true,
+  schema_version: 1,
+  devices: [
+    { id: "mouse", name: "Logitech PRO X", brand: "Logitech", kind: "mouse", level: 75, status: "discharging", available: true },
+    { id: "headset", name: "Logitech PRO X 2 LIGHTSPEED", brand: "Logitech", kind: "headset", level: 67, status: "discharging", available: true }
+  ]
+}))
+assert.strictEqual(bothKnown.devices[0].level, 75)
+assert.strictEqual(bothKnown.devices[1].level, 67)
+assert.strictEqual(Model.levelDisplayText(bothKnown.devices[0], "percent"), "75%")
+assert.strictEqual(Model.levelDisplayText(bothKnown.devices[1], "percent"), "67%")
+const logitech = Model.brandGroups(bothKnown.devices)
+assert.strictEqual(logitech.length, 1)
+assert.strictEqual(logitech[0].headerShowsLevel, false)
+assert.strictEqual(logitech[0].devices[0].level !== logitech[0].devices[1].level, true)
 assert.strictEqual(Model.formatRemaining(0), "--")
 assert.strictEqual(Model.formatRemaining(90), "2m")
 assert.strictEqual(Model.formatRemaining(5400), "1h 30m")
