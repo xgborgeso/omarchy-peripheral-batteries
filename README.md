@@ -85,6 +85,12 @@ omarchy bar move io.github.gabriel.peripherals-battery --section right
 omarchy bar set io.github.gabriel.peripherals-battery refreshIntervalSec 15 --json
 ```
 
+## Contributing
+
+Bug reports and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md)
+covers the checks, what review will ask you to prove, and the house style.
+[AGENTS.md](AGENTS.md) adds the traps coding agents hit in this tree.
+
 ## Tests
 
 `Model.js` is parsing and formatting with no QML imports. The helper is Python 3 stdlib.

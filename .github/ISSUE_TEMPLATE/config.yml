@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Omarchy plugin docs
+    url: https://omarchyplugins.com/develop.html
+    about: Manifest, bar-widget contract, validate and summon.
