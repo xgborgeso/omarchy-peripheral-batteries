@@ -1,6 +1,6 @@
-# Peripherals
+# Peripherals Battery
 
-Wireless mice, keyboards, headsets and controllers in the Omarchy bar: presence, battery when the kernel publishes it, and low-battery notifications.
+Wireless mice, keyboards, headsets and controllers in the Omarchy bar, grouped by brand.
 
 This occupies the same job as `hl.peripheral_battery`. The panel is drawn in the Nothing Audio idiom (hero + labeled meters + charging pulse), and devices without a UPower pack still appear as `--`.
 
@@ -22,7 +22,8 @@ The plugin directory is a git clone. After `plugin add`, the live copy is `~/.co
 
 ## Usage
 
-- Left click: open the panel
+- Left click the chip: open the panel
+- Click a battery value: cycle percent → remaining (if the kernel has it) → charging status
 - Middle click: refresh
 - `r`: refresh
 - Esc: close
@@ -45,6 +46,9 @@ omarchy bar set io.github.gabriel.peripherals-battery refreshIntervalSec 15 --js
 | `criticalBatteryPercent` | 10 | Critical notification |
 | `notifyOnLow` | true | Desktop notification |
 | `notifyRepeatMinutes` | 0 | Re-notify while still low (0 = once) |
+| `levelDisplay` | percent | `percent`, `remaining`, or `status` |
+
+Gaming headsets such as the PRO X 2 LIGHTSPEED do not publish battery through the kernel. Optional: install [headsetcontrol](https://github.com/Sapd/HeadsetControl) (`omarchy pkg add headsetcontrol`), then unplug and replug the dongle so its udev rules apply. The helper uses it when it is on `PATH`. Do not vendor the binary in this repo.
 
 ## What it does not do
 

@@ -40,6 +40,18 @@ Panel {
   readonly property string heroPhraseText: activePhrases[phraseIndex % activePhrases.length]
   readonly property string heroTitle: "Peripherals Battery"
   readonly property var brandGroups: Model.brandGroups(svc.devices)
+  property string levelDisplay: "percent"
+
+  function cycleLevelDisplay() {
+    var next = Model.nextDisplayMode(root.levelDisplay, svc.devices)
+    root.levelDisplay = next
+    var updated = {}
+    var src = root.settings || {}
+    for (var key in src) updated[key] = src[key]
+    updated.levelDisplay = next
+    if (bar && bar.shell && typeof bar.shell.updateEntryInline === "function")
+      bar.shell.updateEntryInline(moduleName, updated)
+  }
   readonly property string heroMeta: !svc.hasDevices
     ? (svc.helperMissing ? "Helper not built" : (svc.lastError !== "" ? "Cannot read devices" : "Not connected"))
     : heroPhraseText
@@ -52,6 +64,11 @@ Panel {
     if (panelFlick) panelFlick.contentY = 0
     svc.refresh()
     Qt.callLater(function () { keyCatcher.forceActiveFocus() })
+  }
+
+  onSettingsChanged: {
+    var mode = String(setting("levelDisplay", "percent") || "percent")
+    if (Model.displayModes(svc.devices).indexOf(mode) >= 0) root.levelDisplay = mode
   }
 
   Service {
@@ -176,7 +193,7 @@ Panel {
 
                 Text {
                   id: brandPercent
-                  visible: modelData.allKnown === true
+                  visible: modelData.allKnown === true && root.levelDisplay === "percent"
                   text: Model.levelText(modelData.lowest)
                   color: Qt.darker(root.foreground, 1.4)
                   font.family: root.fontFamily
@@ -185,6 +202,12 @@ Panel {
                   anchors.right: parent.right
                   anchors.rightMargin: Style.space(6)
                   anchors.verticalCenter: parent.verticalCenter
+
+                  MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.cycleLevelDisplay()
+                  }
                 }
               }
 
@@ -275,19 +298,25 @@ Panel {
         font.family: root.fontFamily
         font.pixelSize: Style.font.body
         elide: Text.ElideRight
-        width: Math.max(0, parent.width - Style.space(22) - Style.space(8) - Style.space(38) - Style.space(8))
+        width: Math.max(0, parent.width - Style.space(22) - Style.space(8) - Style.space(64) - Style.space(8))
         anchors.verticalCenter: parent.verticalCenter
       }
 
       Text {
-        text: Model.levelText(batteryRow.device.level)
+        text: Model.levelDisplayText(batteryRow.device, root.levelDisplay)
         color: batteryRow.low ? root.urgent : Qt.darker(root.foreground, 1.4)
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: true
-        width: Style.space(38)
+        width: Style.space(64)
         horizontalAlignment: Text.AlignRight
         anchors.verticalCenter: parent.verticalCenter
+
+        MouseArea {
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.cycleLevelDisplay()
+        }
       }
     }
   }

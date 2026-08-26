@@ -14,6 +14,8 @@ function sample() {
         brand: "Logitech",
         transport: "lightspeed",
         level: 77,
+        remaining_sec: -1,
+        status: "discharging",
         charging: false,
         available: true
       },
@@ -51,6 +53,14 @@ assert.strictEqual(groups.length, 1)
 assert.strictEqual(groups[0].brand, "Logitech")
 assert.strictEqual(groups[0].devices.length, 2)
 assert.strictEqual(groups[0].allKnown, false)
+assert.strictEqual(Model.formatRemaining(0), "--")
+assert.strictEqual(Model.formatRemaining(90), "2m")
+assert.strictEqual(Model.formatRemaining(5400), "1h 30m")
+assert.strictEqual(Model.statusLabel("discharging", false), "In use")
+assert.deepStrictEqual(Model.displayModes(ok.devices), ["percent", "status"])
+assert.strictEqual(Model.nextDisplayMode("percent", ok.devices), "status")
+assert.strictEqual(Model.levelDisplayText(ok.devices[0], "percent"), "77%")
+assert.strictEqual(Model.levelDisplayText(ok.devices[0], "status"), "In use")
 
 const empty = Model.parseStatus("")
 assert.strictEqual(empty.ok, false)

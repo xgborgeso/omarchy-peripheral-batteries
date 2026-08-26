@@ -22,7 +22,8 @@
       "lowBatteryPercent": 20,
       "criticalBatteryPercent": 10,
       "notifyOnLow": true,
-      "notifyRepeatMinutes": 0
+      "notifyRepeatMinutes": 0,
+      "levelDisplay": "percent"
     },
     "schema": [
       {
@@ -69,6 +70,13 @@
         "min": 0,
         "max": 720,
         "defaultValue": 0
+      },
+      {
+        "key": "levelDisplay",
+        "type": "enum",
+        "options": ["percent", "remaining", "status"],
+        "label": "Battery readout (click the value to cycle)",
+        "defaultValue": "percent"
       }
     ]
   }

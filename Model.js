@@ -11,6 +11,8 @@ function defaultDevice() {
     kind: "unknown",
     transport: "unknown",
     level: LEVEL_UNKNOWN,
+    remaining_sec: LEVEL_UNKNOWN,
+    status: "unknown",
     charging: false,
     available: false
   }
@@ -40,6 +42,9 @@ function device(raw) {
   value.transport = String(raw.transport || "unknown")
   var level = integer(raw.level, LEVEL_UNKNOWN)
   value.level = (level >= 0 && level <= 100) ? level : LEVEL_UNKNOWN
+  var remaining = integer(raw.remaining_sec, LEVEL_UNKNOWN)
+  value.remaining_sec = remaining > 0 ? remaining : LEVEL_UNKNOWN
+  value.status = String(raw.status || "unknown")
   value.charging = raw.charging === true
   value.available = raw.available === true && value.level !== LEVEL_UNKNOWN
   return value
@@ -149,6 +154,53 @@ function deviceBrand(dev) {
   return "Other"
 }
 
+function formatRemaining(seconds) {
+  var n = integer(seconds, LEVEL_UNKNOWN)
+  if (n <= 0) return "--"
+  var minutes = Math.round(n / 60)
+  if (minutes < 1) return "<1m"
+  if (minutes < 60) return String(minutes) + "m"
+  var hours = Math.floor(minutes / 60)
+  var rest = minutes % 60
+  if (rest === 0) return String(hours) + "h"
+  return String(hours) + "h " + String(rest) + "m"
+}
+
+function statusLabel(status, charging) {
+  if (charging === true || status === "charging") return "Charging"
+  if (status === "full") return "Full"
+  if (status === "discharging") return "In use"
+  return "--"
+}
+
+function displayModes(devices) {
+  var modes = ["percent"]
+  var list = devices || []
+  var hasRemaining = false
+  var hasStatus = false
+  for (var i = 0; i < list.length; i++) {
+    if (integer(list[i].remaining_sec, LEVEL_UNKNOWN) > 0) hasRemaining = true
+    if (list[i].status && list[i].status !== "unknown") hasStatus = true
+    if (list[i].charging === true) hasStatus = true
+  }
+  if (hasRemaining) modes.push("remaining")
+  if (hasStatus) modes.push("status")
+  return modes
+}
+
+function nextDisplayMode(current, devices) {
+  var modes = displayModes(devices)
+  var at = modes.indexOf(current)
+  if (at < 0) return modes[0]
+  return modes[(at + 1) % modes.length]
+}
+
+function levelDisplayText(dev, mode) {
+  if (mode === "remaining") return formatRemaining(dev && dev.remaining_sec)
+  if (mode === "status") return statusLabel(dev && dev.status, dev && dev.charging)
+  return levelText(dev && dev.level)
+}
+
 function brandGroups(devices) {
   var list = devices || []
   var order = []
@@ -219,6 +271,11 @@ if (typeof module !== "undefined") {
     kindGlyph: kindGlyph,
     deviceBrand: deviceBrand,
     brandGroups: brandGroups,
+    formatRemaining: formatRemaining,
+    statusLabel: statusLabel,
+    displayModes: displayModes,
+    nextDisplayMode: nextDisplayMode,
+    levelDisplayText: levelDisplayText,
     lowestLevel: lowestLevel,
     anyLow: anyLow,
     errorText: errorText

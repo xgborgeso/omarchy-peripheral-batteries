@@ -26,6 +26,8 @@ struct Device {
     kind: String,
     transport: String,
     level: i32,
+    remaining_sec: i32,
+    status: String,
     charging: bool,
     available: bool,
 }
@@ -53,6 +55,8 @@ struct Pack {
     model: String,
     serial: String,
     level: i32,
+    remaining_sec: i32,
+    status: String,
     charging: bool,
     scope: String,
     type_name: String,
@@ -129,6 +133,8 @@ fn read_packs(dir: &Path) -> Vec<Pack> {
         let model = read_file(&path.join("model_name"));
         let manufacturer = read_file(&path.join("manufacturer"));
         let status = read_file(&path.join("status"));
+        let charging = status.eq_ignore_ascii_case("Charging")
+            || status.eq_ignore_ascii_case("Full");
         let level = read_file(&path.join("capacity"))
             .parse::<i32>()
             .ok()
@@ -144,8 +150,9 @@ fn read_packs(dir: &Path) -> Vec<Pack> {
             model,
             serial,
             level,
-            charging: status.eq_ignore_ascii_case("Charging")
-                || status.eq_ignore_ascii_case("Full"),
+            remaining_sec: remaining_secs(&path, charging),
+            status: status_token(&status),
+            charging,
             scope,
             type_name,
             sys_name,
@@ -361,6 +368,8 @@ fn merge(packs: Vec<Pack>, hids: Vec<Hid>) -> Vec<Device> {
                 transport: transport_of(hid, &name),
                 name,
                 level: pack.level,
+                remaining_sec: pack.remaining_sec,
+                status: pack.status.clone(),
                 charging: pack.charging,
                 available: pack.level != LEVEL_UNKNOWN,
             },
@@ -398,6 +407,8 @@ fn merge(packs: Vec<Pack>, hids: Vec<Hid>) -> Vec<Device> {
                 kind: kind_of(&hid.name, Some(hid)),
                 transport: transport_of(Some(hid), &hid.name),
                 level: LEVEL_UNKNOWN,
+                remaining_sec: LEVEL_UNKNOWN,
+                status: "unknown".into(),
                 charging: false,
                 available: false,
             },
@@ -442,6 +453,55 @@ fn brand_of(hid: Option<&Hid>, manufacturer: &str, name: &str) -> String {
         return "Sony".into();
     }
     "Other".into()
+}
+
+fn status_token(raw: &str) -> String {
+    let s = raw.trim().to_ascii_lowercase();
+    if s == "charging" {
+        "charging".into()
+    } else if s == "full" {
+        "full".into()
+    } else if s == "discharging" {
+        "discharging".into()
+    } else if s.is_empty() {
+        "unknown".into()
+    } else {
+        s
+    }
+}
+
+fn parse_positive_i32(path: &Path) -> i32 {
+    read_file(path)
+        .parse::<i32>()
+        .ok()
+        .filter(|n| *n > 0)
+        .unwrap_or(0)
+}
+
+fn parse_i64(path: &Path) -> Option<i64> {
+    read_file(path).parse::<i64>().ok()
+}
+
+fn remaining_secs(path: &Path, charging: bool) -> i32 {
+    let to_empty = parse_positive_i32(&path.join("time_to_empty_now"));
+    let to_full = parse_positive_i32(&path.join("time_to_full_now"));
+    if charging && to_full > 0 {
+        return to_full;
+    }
+    if !charging && to_empty > 0 {
+        return to_empty;
+    }
+    let charge = parse_i64(&path.join("charge_now")).filter(|n| *n > 0);
+    let current = parse_i64(&path.join("current_now")).map(|n| n.abs()).filter(|n| *n > 0);
+    if let (Some(ch), Some(cu)) = (charge, current) {
+        return ((ch as f64 / cu as f64) * 3600.0).round() as i32;
+    }
+    let energy = parse_i64(&path.join("energy_now")).filter(|n| *n > 0);
+    let power = parse_i64(&path.join("power_now")).map(|n| n.abs()).filter(|n| *n > 0);
+    if let (Some(en), Some(pw)) = (energy, power) {
+        return ((en as f64 / pw as f64) * 3600.0).round() as i32;
+    }
+    LEVEL_UNKNOWN
 }
 
 fn title_brand(value: &str) -> String {
