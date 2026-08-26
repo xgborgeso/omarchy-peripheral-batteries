@@ -30,21 +30,16 @@ Panel {
     : (anyLow ? (bar ? bar.urgent : Color.urgent) : barForeground)
 
   readonly property var activePhrases: [
-    "Herding dongles",
-    "Counting milliamps",
     "Dongle, engage",
     "Live long and charge",
-    "Batteries to warp",
-    "Reverse the polarity",
-    "Wireless, but make it so",
-    "Milliamps to impulse",
-    "HID from hyperspace",
-    "Never tell me the charge",
-    "Set phasers to charge",
     "It's a mouse, Jim",
-    "No warp without charge",
+    "Never tell me the charge",
+    "Herding dongles",
+    "Set phasers to charge",
+    "Reverse the polarity",
     "Tractor beam the dongle",
-    "Auxiliary power online"
+    "Wireless, but make it so",
+    "Counting milliamps"
   ]
   readonly property string heroPhraseText: activePhrases[phraseIndex % activePhrases.length]
   readonly property string heroTitle: "Peripherals Battery"
