@@ -2,6 +2,7 @@
 
 var LEVEL_UNKNOWN = -1
 var SUPPORTED_SCHEMA = 1
+var ERROR_LIMIT = 160
 
 function defaultDevice() {
   return {
@@ -27,9 +28,18 @@ function defaultStatus() {
   }
 }
 
-function integer(value, fallback) {
-  var n = parseInt(value, 10)
-  return isFinite(n) ? n : fallback
+// Helper fields arrive as JSON numbers. Anything else is a malformed field and
+// takes the fallback rather than parseInt's leading-digit salvage.
+function toInt(value, fallback) {
+  if (typeof value === "number") return isFinite(value) ? Math.round(value) : fallback
+  var text = value === null || value === undefined ? "" : String(value).trim()
+  if (text === "") return fallback
+  var n = Number(text)
+  return isFinite(n) ? Math.round(n) : fallback
+}
+
+function isKnownLevel(level) {
+  return typeof level === "number" && level >= 0 && level <= 100
 }
 
 function isHumanName(name) {
@@ -78,9 +88,9 @@ function device(raw) {
   value.transport = String(raw.transport || "unknown") || "unknown"
   value.brand = String(raw.brand || "").trim()
   value.name = String(raw.name || "").trim()
-  var level = integer(raw.level, LEVEL_UNKNOWN)
+  var level = toInt(raw.level, LEVEL_UNKNOWN)
   value.level = (level >= 0 && level <= 100) ? level : LEVEL_UNKNOWN
-  var remaining = integer(raw.remaining_sec, LEVEL_UNKNOWN)
+  var remaining = toInt(raw.remaining_sec, LEVEL_UNKNOWN)
   value.remaining_sec = remaining > 0 ? remaining : LEVEL_UNKNOWN
   value.status = String(raw.status || "unknown")
   value.charging = raw.charging === true
@@ -89,57 +99,50 @@ function device(raw) {
   return value
 }
 
-function parseStatus(raw) {
+function statusError(message, schemaTooNew) {
   var status = defaultStatus()
-  var text = String(raw || "").trim()
-  if (text === "") {
-    status.lastError = "The peripherals helper returned no status"
-    return status
-  }
+  status.lastError = message
+  status.schemaTooNew = schemaTooNew === true
+  return status
+}
 
-  var parsed
+function parseStatus(raw) {
+  var text = raw === null || raw === undefined ? "" : String(raw).trim()
+  if (text === "") return statusError("The peripherals helper printed nothing")
+
+  var payload
   try {
-    parsed = JSON.parse(text)
-  } catch (e) {
-    status.lastError = "Could not read the peripherals status"
-    return status
+    payload = JSON.parse(text)
+  } catch (err) {
+    return statusError("The peripherals helper printed something that is not JSON")
   }
-  if (!parsed || typeof parsed !== "object") {
-    status.lastError = "The peripherals helper returned an invalid status"
-    return status
-  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload))
+    return statusError("The peripherals helper printed a status that is not an object")
 
-  var version = integer(parsed.schema_version, 0)
-  if (version > SUPPORTED_SCHEMA) {
-    status.schemaTooNew = true
-    status.lastError = "Peripherals status schema " + version + " is newer than this plugin"
-    return status
-  }
+  var schema = toInt(payload.schema_version, 0)
+  if (schema > SUPPORTED_SCHEMA)
+    return statusError("This plugin reads status schema " + SUPPORTED_SCHEMA
+      + ", the helper sent " + schema, true)
 
-  if (parsed.ok === false) {
-    status.lastError = errorText(parsed.error || "The peripherals helper failed")
-    return status
-  }
+  if (payload.ok === false)
+    return statusError(errorText(payload.error) || "The peripherals helper reported a failure")
 
-  status.ok = true
-  var list = Array.isArray(parsed.devices) ? parsed.devices : []
-  var devices = []
+  var rows = []
+  var list = Array.isArray(payload.devices) ? payload.devices : []
   for (var i = 0; i < list.length; i++) {
-    var parsedDev = device(list[i])
-    if (parsedDev) devices.push(parsedDev)
+    var row = device(list[i])
+    if (row) rows.push(row)
   }
-  status.devices = assignPlaceholders(devices)
-  status.lastError = errorText(parsed.error)
+
+  var status = defaultStatus()
+  status.ok = true
+  status.devices = assignPlaceholders(rows)
+  status.lastError = errorText(payload.error)
   return status
 }
 
 function levelText(level) {
-  return level === LEVEL_UNKNOWN ? "--" : String(level) + "%"
-}
-
-function levelFraction(level) {
-  if (level === LEVEL_UNKNOWN) return 0
-  return Math.max(0, Math.min(100, level)) / 100
+  return isKnownLevel(level) ? level + "%" : "--"
 }
 
 function kindLabel(kind) {
@@ -244,9 +247,12 @@ function anyLow(devices, threshold) {
   return false
 }
 
+// Helper stderr can be a whole traceback. The panel gets one line, cut on a word
+// boundary so the tail is not a half-word.
 function errorText(value) {
-  var text = String(value || "").replace(/\s+/g, " ").trim()
-  return text.length > 180 ? text.substring(0, 177) + "…" : text
+  var text = (value === null || value === undefined ? "" : String(value)).split(/\s+/).join(" ").trim()
+  if (text.length <= ERROR_LIMIT) return text
+  return text.slice(0, ERROR_LIMIT).replace(/\s+\S*$/, "") + "..."
 }
 
 if (typeof module !== "undefined") {
@@ -260,7 +266,6 @@ if (typeof module !== "undefined") {
     isHumanBrand: isHumanBrand,
     assignPlaceholders: assignPlaceholders,
     levelText: levelText,
-    levelFraction: levelFraction,
     kindLabel: kindLabel,
     transportLabel: transportLabel,
     rowLabel: rowLabel,
