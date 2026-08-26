@@ -94,9 +94,12 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(devices[1].level, 67)
         self.assertTrue(devices[1].available)
 
-    def test_laptop_pack_is_ignored(self):
-        devices = helper.collect_from(FIXTURES / "laptop")
-        self.assertEqual(devices, [])
+    def test_system_pack_is_ignored(self):
+        # The this-machine tree carries a scope=System BAT0 alongside the
+        # peripheral packs; omarchy.power owns it, so it must never list here.
+        devices = helper.collect_from(FIXTURES / "this-machine")
+        self.assertFalse(any("Dell" in d.name or "BAT0" in d.name for d in devices),
+                         [d.name for d in devices])
 
     def test_empty_sysfs_is_ok(self):
         devices = helper.collect_from(FIXTURES / "empty")

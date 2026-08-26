@@ -8,7 +8,7 @@
   "description": "Wireless mice, keyboards, headsets and controllers in the Omarchy bar: presence, battery, and low-battery notifications.",
   "kinds": ["bar-widget"],
   "entryPoints": {
-    "barWidget": "BarWidget.qml"
+    "barWidget": "Panel.qml"
   },
   "barWidget": {
     "displayName": "Peripheral Batteries",

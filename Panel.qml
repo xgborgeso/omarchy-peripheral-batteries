@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Ui as Ui
 import "Model.js" as Model
@@ -11,24 +12,28 @@ Ui.Panel {
   ipcTarget: "io.github.gabriel.peripheral-batteries"
   manageIpc: false
 
-  property var anchorItem: null
-  property var hostWidget: null
-  property var service: null
-  readonly property var barIdentity: hostWidget || root
-  readonly property var svc: service
-
   property int phraseIndex: 0
 
+  readonly property bool hideWhenDisconnected: setting("hideWhenDisconnected", true) === true
   readonly property int lowBatteryPercent: {
     var n = parseInt(String(setting("lowBatteryPercent", 20)), 10)
     return isFinite(n) ? n : 20
   }
+  readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
-  readonly property color dim: Qt.darker(barForeground, 1.55)
+  readonly property color dim: Qt.darker(foreground, 1.55)
+  // A bar icon follows `barForeground`, which tracks a transparent bar; panel
+  // content follows `foreground`. They are not interchangeable.
+  readonly property color barIconColor: !hasDevices
+    ? Qt.darker(barForeground, 1.55)
+    : (anyLow ? urgent : barForeground)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property bool hasDevices: svc ? svc.hasDevices : false
-  readonly property string lastError: svc ? String(svc.lastError || "") : ""
-  readonly property bool helperMissing: svc ? svc.helperMissing === true : false
+
+  readonly property bool hasDevices: svc.hasDevices
+  readonly property string lastError: String(svc.lastError || "")
+  readonly property bool helperMissing: svc.helperMissing === true
+  readonly property bool anyLow: Model.anyLow(svc.devices, lowBatteryPercent)
+  readonly property var brandGroups: Model.brandGroups(svc.devices)
 
   readonly property var activePhrases: [
     "Dongle, engage",
@@ -43,8 +48,6 @@ Ui.Panel {
     "Counting milliamps"
   ]
   readonly property string heroPhraseText: activePhrases[phraseIndex % activePhrases.length]
-  readonly property string heroTitle: "Peripheral Batteries"
-  readonly property var brandGroups: Model.brandGroups(svc ? svc.devices : [])
   readonly property string heroMeta: !hasDevices
     ? (helperMissing ? "Helper missing" : (lastError !== "" ? "Cannot read devices" : "Not connected"))
     : heroPhraseText
@@ -58,31 +61,57 @@ Ui.Panel {
     phraseIndex = next
   }
 
-  function open() {
-    root.controller.show()
-  }
-
-  function close() {
-    root.controller.hide()
-  }
-
-  function switchPanel(direction) {
-    if (root.bar && typeof root.bar.switchPanelFrom === "function")
-      return root.bar.switchPanelFrom(root.barIdentity, direction)
-    return false
-  }
+  visible: !hideWhenDisconnected || hasDevices || lastError !== "" || helperMissing
+  implicitWidth: visible ? button.implicitWidth : 0
+  implicitHeight: visible ? button.implicitHeight : 0
 
   onOpenedChanged: if (opened) {
     pickHeroPhrase()
     if (panelFlick) panelFlick.contentY = 0
-    if (svc && typeof svc.refresh === "function") svc.refresh()
+    svc.refresh()
     Qt.callLater(function () { keyCatcher.forceActiveFocus() })
+  }
+
+  Service {
+    id: svc
+    settings: root.settings
+  }
+
+  IpcHandler {
+    target: root.ipcTarget
+    function open(): void { root.open() }
+    function close(): void { root.close() }
+    function toggle(): void { root.toggle() }
+    function refresh(): string { svc.refresh(); return "ok" }
+    function status(): string {
+      if (!svc.hasDevices) return "disconnected"
+      var parts = []
+      for (var i = 0; i < svc.devices.length; i++) {
+        var d = svc.devices[i]
+        parts.push(d.name + " " + Model.levelText(d.level))
+      }
+      return parts.join(" · ")
+    }
+  }
+
+  Ui.BarIconButton {
+    id: button
+    anchors.fill: parent
+    bar: root.bar
+    text: "󰂂"
+    tooltipText: "Open Peripheral Batteries"
+    useActiveColor: false
+    foreground: root.barIconColor
+    onPressed: function (buttonCode) {
+      if (buttonCode === Qt.MiddleButton) svc.refresh()
+      else root.toggle()
+    }
   }
 
   Ui.KeyboardPanel {
     id: panel
-    anchorItem: root.anchorItem
-    owner: root.barIdentity
+    anchorItem: button
+    owner: root
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
@@ -95,8 +124,7 @@ Ui.Panel {
       onCloseRequested: root.close()
       onTabRequested: function (direction) { root.switchPanel(direction) }
       onTextKey: function (text) {
-        if (String(text).toLowerCase() === "r" && svc && typeof svc.refresh === "function")
-          svc.refresh()
+        if (String(text).toLowerCase() === "r") svc.refresh()
       }
 
       Flickable {
@@ -118,15 +146,15 @@ Ui.Panel {
           Ui.PanelHero {
             id: hero
             width: parent.width
-            title: root.heroTitle
+            title: "Peripheral Batteries"
             meta: root.heroMeta
-            foreground: root.barForeground
+            foreground: root.foreground
             fontFamily: root.fontFamily
             iconOpacity: root.hasDevices ? 1.0 : 0.5
             iconComponent: Component {
               Text {
                 text: "󰂂"
-                color: root.hasDevices ? root.barForeground : root.dim
+                color: root.hasDevices ? root.foreground : root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.display
               }
@@ -155,7 +183,7 @@ Ui.Panel {
               Ui.PanelSectionHeader {
                 visible: modelData.headerShowsBrand === true && String(modelData.brand || "") !== ""
                 text: String(modelData.brand || "").toUpperCase()
-                foreground: root.barForeground
+                foreground: root.foreground
                 fontFamily: root.fontFamily
               }
 
@@ -204,7 +232,7 @@ Ui.Panel {
 
       Text {
         text: Model.kindGlyph(batteryRow.device.kind)
-        color: root.barForeground
+        color: root.foreground
         font.family: root.fontFamily
         font.pixelSize: Style.font.title
         width: Style.space(22)
@@ -214,7 +242,7 @@ Ui.Panel {
 
       Text {
         text: Model.displayName(batteryRow.device)
-        color: root.barForeground
+        color: root.foreground
         font.family: root.fontFamily
         font.pixelSize: Style.font.body
         elide: Text.ElideRight
@@ -224,7 +252,7 @@ Ui.Panel {
 
       Text {
         text: Model.levelText(batteryRow.device.level)
-        color: batteryRow.low ? root.urgent : Qt.darker(root.barForeground, 1.4)
+        color: batteryRow.low ? root.urgent : Qt.darker(root.foreground, 1.4)
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: true
