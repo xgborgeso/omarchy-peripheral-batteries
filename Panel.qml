@@ -82,13 +82,9 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    iconComponent: Component {
-      PeripheralsIcon {
-        anchors.centerIn: parent
-        iconSize: Style.space(12)
-        color: root.barIconColor
-      }
-    }
+    text: "󰂂"
+    useActiveColor: false
+    foreground: root.barIconColor
     onPressed: function (buttonCode) {
       if (buttonCode === Qt.MiddleButton) svc.refresh()
       else root.toggle()
@@ -226,63 +222,77 @@ Panel {
 
     readonly property bool low: device.level !== Model.LEVEL_UNKNOWN
       && device.level <= root.lowBatteryPercent && !device.charging
-    implicitHeight: batteryLayout.implicitHeight
+    implicitHeight: rowColumn.implicitHeight
 
-    RowLayout {
-      id: batteryLayout
+    Column {
+      id: rowColumn
       anchors.left: parent.left
       anchors.right: parent.right
-      spacing: Style.spacing.lg
+      spacing: Style.spacing.xs
 
       Text {
-        text: batteryRow.device.name || Model.kindLabel(batteryRow.device.kind)
+        width: parent.width
+        text: Model.rowLabel(batteryRow.device)
         color: root.foreground
-        opacity: 0.6
         font.family: root.fontFamily
         font.pixelSize: Style.font.bodySmall
-        elide: Text.ElideRight
-        Layout.preferredWidth: Style.space(110)
+        wrapMode: Text.WordWrap
       }
 
-      Rectangle {
-        id: meterTrack
-        Layout.fillWidth: true
-        Layout.alignment: Qt.AlignVCenter
-        implicitHeight: Style.space(6)
-        radius: height / 2
-        color: Qt.darker(root.foreground, 3.2)
+      Text {
+        width: parent.width
+        visible: Model.rowCaption(batteryRow.device) !== ""
+        text: Model.rowCaption(batteryRow.device)
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+
+      RowLayout {
+        width: parent.width
+        spacing: Style.spacing.lg
 
         Rectangle {
-          id: meterFill
-          width: meterTrack.width * Model.levelFraction(batteryRow.device.level)
-          height: parent.height
-          radius: parent.radius
-          color: batteryRow.low ? root.urgent : root.foreground
-        }
+          id: meterTrack
+          Layout.fillWidth: true
+          Layout.alignment: Qt.AlignVCenter
+          implicitHeight: Style.space(6)
+          radius: height / 2
+          color: Qt.darker(root.foreground, 3.2)
 
-        Rectangle {
-          anchors.fill: meterFill
-          radius: meterFill.radius
-          color: meterTrack.color
-          visible: batteryRow.device.charging
-          opacity: 0
+          Rectangle {
+            id: meterFill
+            width: meterTrack.width * Model.levelFraction(batteryRow.device.level)
+            height: parent.height
+            radius: parent.radius
+            color: batteryRow.low ? root.urgent : root.foreground
+          }
 
-          SequentialAnimation on opacity {
-            running: batteryRow.device.charging
-            loops: Animation.Infinite
-            NumberAnimation { from: 0.0; to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
-            NumberAnimation { from: 0.55; to: 0.0; duration: 900; easing.type: Easing.InOutQuad }
+          Rectangle {
+            anchors.fill: meterFill
+            radius: meterFill.radius
+            color: meterTrack.color
+            visible: batteryRow.device.charging
+            opacity: 0
+
+            SequentialAnimation on opacity {
+              running: batteryRow.device.charging
+              loops: Animation.Infinite
+              NumberAnimation { from: 0.0; to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
+              NumberAnimation { from: 0.55; to: 0.0; duration: 900; easing.type: Easing.InOutQuad }
+            }
           }
         }
-      }
 
-      Text {
-        text: Model.levelText(batteryRow.device.level)
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        horizontalAlignment: Text.AlignRight
-        Layout.preferredWidth: Style.space(38)
+        Text {
+          text: Model.levelText(batteryRow.device.level)
+          color: root.foreground
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          horizontalAlignment: Text.AlignRight
+          Layout.preferredWidth: Style.space(38)
+        }
       }
     }
   }

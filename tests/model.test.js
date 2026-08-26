@@ -39,6 +39,8 @@ assert.strictEqual(Model.levelFraction(ok.devices[1].level), 0)
 assert.strictEqual(Model.lowestLevel(ok.devices), 77)
 assert.strictEqual(Model.anyLow(ok.devices, 20), false)
 assert.strictEqual(Model.transportLabel("lightspeed"), "Lightspeed")
+assert.strictEqual(Model.rowCaption(ok.devices[1]), "Headset · Lightspeed")
+assert.strictEqual(Model.rowLabel(ok.devices[1]), "Logitech PRO X 2 LIGHTSPEED")
 
 const empty = Model.parseStatus("")
 assert.strictEqual(empty.ok, false)

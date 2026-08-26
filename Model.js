@@ -112,9 +112,16 @@ function transportLabel(transport) {
 
 function rowLabel(dev) {
   if (!dev) return kindLabel("unknown")
-  var kind = kindLabel(dev.kind)
   if (dev.name) return dev.name
-  return kind
+  return kindLabel(dev.kind)
+}
+
+function rowCaption(dev) {
+  if (!dev) return ""
+  var kind = kindLabel(dev.kind)
+  var transport = transportLabel(dev.transport)
+  if (kind && transport) return kind + " · " + transport
+  return kind || transport
 }
 
 function lowestLevel(devices) {
@@ -152,6 +159,7 @@ if (typeof module !== "undefined") {
     kindLabel: kindLabel,
     transportLabel: transportLabel,
     rowLabel: rowLabel,
+    rowCaption: rowCaption,
     lowestLevel: lowestLevel,
     anyLow: anyLow,
     errorText: errorText
