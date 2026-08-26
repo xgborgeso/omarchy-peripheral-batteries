@@ -6,7 +6,7 @@ desktop notification. It reads `/sys` through a small Python helper, so there is
 no daemon and no dependencies beyond the Python 3 already on the system.
 
 <p align="center">
-  <img src="preview.png" width="420"
+  <img src="preview.png" width="520"
        alt="The Peripheral Batteries panel open in the Omarchy bar, listing a Logitech mouse and headset with their battery percentages under a LOGITECH header">
 </p>
 
