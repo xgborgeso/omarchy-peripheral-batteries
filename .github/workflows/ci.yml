@@ -47,8 +47,8 @@ jobs:
       - name: Model tests
         run: node tests/model.test.js
 
-      - name: Panel safety guards
-        run: python3 tests/panel.test.py -v
+      - name: QML guards
+        run: python3 tests/qml.test.py -v
 
   manifest:
     name: manifest (omarchy validator)
