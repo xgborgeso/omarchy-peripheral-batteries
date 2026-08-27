@@ -55,14 +55,16 @@ omarchy bar set io.github.xgborgeso.peripheral-batteries hideWhenDisconnected fa
 omarchy bar move io.github.xgborgeso.peripheral-batteries --section right
 ```
 
-<details>
-<summary>What the notifications look like</summary>
-
-<br>
+### Notifications
 
 A device is warned once when it crosses `lowBatteryPercent`, once more if it
 falls past `criticalBatteryPercent`, and not again until it has charged back
 above the threshold. Each alert carries the glyph for its kind.
+
+<details>
+<summary>See what they look like</summary>
+
+<br>
 
 <img src="docs/notification-low.png" width="424"
      alt="A notification reading Peripheral battery low, Logitech PRO X, 18 percent, with a mouse glyph">
