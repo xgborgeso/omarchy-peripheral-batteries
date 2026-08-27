@@ -1,6 +1,6 @@
 # Peripheral Batteries for Omarchy
 
-[![CI](https://github.com/xgborgeso/omarchy-peripheral-batteries/actions/workflows/ci.yml/badge.svg)](https://github.com/xgborgeso/omarchy-peripheral-batteries/actions/workflows/ci.yml)
+[![Check](https://github.com/xgborgeso/omarchy-peripheral-batteries/actions/workflows/check.yml/badge.svg)](https://github.com/xgborgeso/omarchy-peripheral-batteries/actions/workflows/check.yml)
 
 An Omarchy bar widget for wireless mice, keyboards, headsets and controllers:
 battery percent for each one, grouped by brand, with a low-battery colour and a
