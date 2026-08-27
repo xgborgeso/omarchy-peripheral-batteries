@@ -31,13 +31,13 @@ jobs:
         # end is what a current Arch install will really execute.
         python: ["3.11", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -54,7 +54,7 @@ jobs:
     name: manifest (omarchy validator)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Pick the Omarchy ref
         id: ref
@@ -98,7 +98,7 @@ jobs:
         # Quickshell types rather than a stubbed approximation of them.
         run: pacman -Syu --noconfirm --needed qt6-declarative quickshell git jq
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Syntax check
         # qmlformat exits non-zero on a parse error and needs no import
