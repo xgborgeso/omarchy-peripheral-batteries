@@ -1,5 +1,7 @@
 # Peripheral Batteries for Omarchy
 
+[![CI](https://github.com/xgborgeso/omarchy-peripheral-batteries/actions/workflows/ci.yml/badge.svg)](https://github.com/xgborgeso/omarchy-peripheral-batteries/actions/workflows/ci.yml)
+
 An Omarchy bar widget for wireless mice, keyboards, headsets and controllers:
 battery percent for each one, grouped by brand, with a low-battery colour and a
 desktop notification. It reads `/sys` through a small Python helper, so there is
