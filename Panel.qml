@@ -153,6 +153,7 @@ Ui.Panel {
             iconOpacity: root.hasDevices ? 1.0 : 0.5
             iconComponent: Component {
               Text {
+                textFormat: Text.PlainText
                 text: "󰂂"
                 color: root.hasDevices ? root.foreground : root.dim
                 font.family: root.fontFamily
@@ -162,6 +163,7 @@ Ui.Panel {
           }
 
           Text {
+            textFormat: Text.PlainText
             visible: root.lastError !== ""
             width: parent.width
             text: root.lastError
@@ -181,6 +183,7 @@ Ui.Panel {
               visible: modelData.devices && modelData.devices.length > 0
 
               Ui.PanelSectionHeader {
+                textFormat: Text.PlainText
                 visible: modelData.headerShowsBrand === true && String(modelData.brand || "") !== ""
                 text: String(modelData.brand || "").toUpperCase()
                 foreground: root.foreground
@@ -199,6 +202,7 @@ Ui.Panel {
           }
 
           Text {
+            textFormat: Text.PlainText
             visible: !root.hasDevices && root.lastError === ""
             width: parent.width
             text: "No wireless peripherals."
@@ -231,6 +235,7 @@ Ui.Panel {
       spacing: Style.space(8)
 
       Text {
+        textFormat: Text.PlainText
         text: Model.kindGlyph(batteryRow.device.kind)
         color: root.foreground
         font.family: root.fontFamily
@@ -241,6 +246,7 @@ Ui.Panel {
       }
 
       Text {
+        textFormat: Text.PlainText
         text: Model.displayName(batteryRow.device)
         color: root.foreground
         font.family: root.fontFamily
@@ -251,6 +257,7 @@ Ui.Panel {
       }
 
       Text {
+        textFormat: Text.PlainText
         text: Model.levelText(batteryRow.device.level)
         color: batteryRow.low ? root.urgent : Qt.darker(root.foreground, 1.4)
         font.family: root.fontFamily

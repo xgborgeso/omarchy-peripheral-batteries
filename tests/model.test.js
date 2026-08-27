@@ -292,3 +292,39 @@ assert.strictEqual(Model.notifyHeadline("warn"), "Peripheral battery low")
 assert.strictEqual(Model.notifyHeadline("crit"), "Peripheral battery critical")
 assert.strictEqual(Model.notifyBody(dev("m", 15)), "m · 15%")
 assert.strictEqual(Model.notifyBody({ kind: "headset", level: 8 }), "Headset · 8%")
+
+// --- hostile device identity ---------------------------------------------------
+// A USB or Bluetooth peripheral chooses its own product and manufacturer strings,
+// so every field here is attacker-controlled. The panel pins its Text elements to
+// Text.PlainText, but the values are filtered too, so no single sink is load-bearing.
+
+const HOSTILE = '<img src="http://evil.invalid/x.png">Mouse'
+const hostile = parseDevices([{ id: "h", name: HOSTILE, brand: HOSTILE, level: 5, available: true }])
+
+// Angle brackets never survive, so nothing downstream can sniff a value as markup.
+assert.strictEqual(hostile.devices[0].name.indexOf("<"), -1)
+assert.strictEqual(hostile.devices[0].name.indexOf(">"), -1)
+assert.strictEqual(hostile.devices[0].brand.indexOf("<"), -1)
+assert.strictEqual(Model.safeText('<a href="x">y</a>').indexOf("<"), -1)
+
+// The notification card renders body markup, so the body is filtered as well.
+assert.strictEqual(Model.notifyBody({ name: HOSTILE, level: 5, kind: "mouse" }).indexOf("<"), -1)
+
+// Newlines cannot forge extra lines in the panel or the notification body.
+assert.strictEqual(Model.safeText("Evil\nDevice"), "Evil Device")
+
+// Long fields are capped rather than handed to the shell whole.
+assert.strictEqual(Model.safeText("A".repeat(5000)).length, 96)
+assert.ok(parseDevices([{ id: "h", name: "A".repeat(5000), level: 5, available: true }])
+  .devices[0].name.length <= 96)
+
+// Helper stderr reaches the panel as error text, so it gets the same treatment.
+const hostileError = Model.parseStatus(JSON.stringify(
+  { ok: false, schema_version: 1, error: "<img src=x>boom\nsecond line" }))
+assert.strictEqual(hostileError.ok, false)
+assert.strictEqual(hostileError.lastError.indexOf("<"), -1)
+assert.strictEqual(hostileError.lastError.indexOf("\n"), -1)
+
+// A name that is nothing but markup falls back to the kind label rather than
+// rendering an empty notification.
+assert.strictEqual(Model.notifyBody({ name: "<>", level: 5, kind: "headset" }), "Headset \u00b7 5%")

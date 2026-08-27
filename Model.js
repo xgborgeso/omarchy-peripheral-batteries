@@ -3,6 +3,19 @@
 var LEVEL_UNKNOWN = -1
 var SUPPORTED_SCHEMA = 1
 var ERROR_LIMIT = 160
+var FIELD_LIMIT = 96
+
+// A peripheral picks its own product and manufacturer strings, so treat every
+// value that reaches a label as hostile. The panel pins its Text elements to
+// plain, and the helper caps its fields, but the notification card renders body
+// markup, so angle brackets are dropped here rather than trusted to any one sink.
+function safeText(value, limit) {
+  var text = value === null || value === undefined ? "" : String(value)
+  text = text.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/[<>]/g, "")
+  text = text.split(/\s+/).join(" ").trim()
+  var cap = limit || FIELD_LIMIT
+  return text.length > cap ? text.slice(0, cap).replace(/\s+\S*$/, "") : text
+}
 
 function defaultDevice() {
   return {
@@ -83,16 +96,16 @@ function assignPlaceholders(devices) {
 function device(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null
   var value = defaultDevice()
-  value.id = String(raw.id || "")
-  value.kind = String(raw.kind || "unknown") || "unknown"
-  value.transport = String(raw.transport || "unknown") || "unknown"
-  value.brand = String(raw.brand || "").trim()
-  value.name = String(raw.name || "").trim()
+  value.id = safeText(raw.id)
+  value.kind = safeText(raw.kind) || "unknown"
+  value.transport = safeText(raw.transport) || "unknown"
+  value.brand = safeText(raw.brand)
+  value.name = safeText(raw.name)
   var level = toInt(raw.level, LEVEL_UNKNOWN)
   value.level = (level >= 0 && level <= 100) ? level : LEVEL_UNKNOWN
   var remaining = toInt(raw.remaining_sec, LEVEL_UNKNOWN)
   value.remaining_sec = remaining > 0 ? remaining : LEVEL_UNKNOWN
-  value.status = String(raw.status || "unknown")
+  value.status = safeText(raw.status) || "unknown"
   value.charging = raw.charging === true
   value.available = raw.available === true && value.level !== LEVEL_UNKNOWN
   if (!value.id && value.level === LEVEL_UNKNOWN && !value.name) return null
@@ -250,7 +263,9 @@ function anyLow(devices, threshold) {
 // Helper stderr can be a whole traceback. The panel gets one line, cut on a word
 // boundary so the tail is not a half-word.
 function errorText(value) {
-  var text = (value === null || value === undefined ? "" : String(value)).split(/\s+/).join(" ").trim()
+  var text = (value === null || value === undefined ? "" : String(value))
+    .replace(/[\u0000-\u001f\u007f]/g, " ").replace(/[<>]/g, "")
+    .split(/\s+/).join(" ").trim()
   if (text.length <= ERROR_LIMIT) return text
   return text.slice(0, ERROR_LIMIT).replace(/\s+\S*$/, "") + "..."
 }
@@ -301,8 +316,9 @@ function notifyHeadline(tier) {
 }
 
 function notifyBody(dev) {
-  return (dev && dev.name ? dev.name : kindLabel(dev ? dev.kind : "unknown"))
-    + " \u00b7 " + levelText(dev ? dev.level : LEVEL_UNKNOWN)
+  var name = safeText(dev && dev.name ? dev.name : "")
+  if (!name) name = kindLabel(dev ? dev.kind : "unknown")
+  return name + " \u00b7 " + levelText(dev ? dev.level : LEVEL_UNKNOWN)
 }
 if (typeof module !== "undefined") {
   module.exports = {
@@ -326,6 +342,7 @@ if (typeof module !== "undefined") {
     lowestLevel: lowestLevel,
     anyLow: anyLow,
     errorText: errorText,
+    safeText: safeText,
     notifyPlan: notifyPlan,
     notifyHeadline: notifyHeadline,
     notifyBody: notifyBody

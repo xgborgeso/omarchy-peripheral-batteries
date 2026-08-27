@@ -14,6 +14,17 @@ from pathlib import Path
 from typing import Any, Optional
 
 SCHEMA_VERSION = 1
+
+# A USB or Bluetooth peripheral chooses its own product and manufacturer strings,
+# so every field that reaches the shell is attacker-controlled. Cap each one, and
+# cap the whole payload, so a hostile descriptor cannot spend the shell's memory
+# or push a wall of text through the panel.
+FIELD_LIMIT = 96
+# Matches ERROR_LIMIT in Model.js: the panel already budgets this much for an
+# error line, so capping shorter here would only hide the tail of a traceback.
+ERROR_LIMIT = 160
+TOTAL_LIMIT = 64 * 1024
+DEVICE_LIMIT = 32
 LEVEL_UNKNOWN = -1
 
 LOGITECH_VID = 0x046D
@@ -558,8 +569,45 @@ def slug(name: str) -> str:
     return "".join(c.lower() if c.isalnum() else "-" for c in name)
 
 
+def clean_field(value: Any, limit: int = FIELD_LIMIT) -> str:
+    """Flatten one device string into something safe to render.
+
+    Control characters (including the newlines that would let one field forge
+    extra lines in the panel) collapse to spaces, and the result is capped. The
+    shell renders these as plain text, but a field that never carries markup or
+    control bytes in the first place cannot depend on that.
+    """
+    text = value if isinstance(value, str) else ("" if value is None else str(value))
+    text = "".join(ch if ch.isprintable() else " " for ch in text)
+    text = " ".join(text.split())
+    if len(text) > limit:
+        text = text[:limit].rstrip()
+    return text
+
+
 def emit(status: dict[str, Any]) -> None:
-    print(json.dumps(status, separators=(",", ":")), flush=True)
+    devices = status.get("devices")
+    if isinstance(devices, list):
+        if len(devices) > DEVICE_LIMIT:
+            devices = devices[:DEVICE_LIMIT]
+        for row in devices:
+            if not isinstance(row, dict):
+                continue
+            for key in ("id", "name", "brand", "kind", "transport", "status"):
+                if key in row:
+                    row[key] = clean_field(row[key])
+        status["devices"] = devices
+    if "error" in status:
+        status["error"] = clean_field(status["error"], ERROR_LIMIT)
+
+    payload = json.dumps(status, separators=(",", ":"))
+    # A payload past the cap means the device list itself is the problem, so drop
+    # it rather than emit a truncated string the shell could not parse.
+    if len(payload) > TOTAL_LIMIT:
+        status["devices"] = []
+        status["error"] = clean_field("Peripheral list too large to report", ERROR_LIMIT)
+        payload = json.dumps(status, separators=(",", ":"))
+    print(payload, flush=True)
 
 
 def main() -> None:

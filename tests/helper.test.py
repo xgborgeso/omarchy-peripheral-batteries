@@ -3,6 +3,8 @@ import importlib.util
 import json
 import sys
 import unittest
+import contextlib
+import io
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -228,6 +230,56 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(payload["schema_version"], 1)
         names = [d["name"] for d in payload["devices"]]
         self.assertTrue(any("PRO X" in n for n in names), names)
+
+
+
+class CleanFieldTests(unittest.TestCase):
+    """A peripheral chooses its own product and manufacturer strings, so the
+    helper caps and flattens every field before the shell ever sees it."""
+
+    def test_control_characters_collapse(self):
+        self.assertEqual(helper.clean_field("Evil\nDevice"), "Evil Device")
+        self.assertEqual(helper.clean_field("a\tb"), "a b")
+
+    def test_field_is_capped(self):
+        self.assertEqual(len(helper.clean_field("A" * 5000)), helper.FIELD_LIMIT)
+
+    def test_non_strings_survive(self):
+        self.assertEqual(helper.clean_field(None), "")
+        self.assertEqual(helper.clean_field(7), "7")
+
+    def test_emit_caps_device_count_and_cleans_fields(self):
+        rows = [{"id": "d%d" % i, "name": "N\nx" * 200, "brand": "b",
+                 "kind": "mouse", "transport": "usb", "status": "ok"}
+                for i in range(200)]
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            helper.emit({"ok": True, "schema_version": 1, "error": "", "devices": rows})
+        payload = json.loads(buf.getvalue())
+        self.assertLessEqual(len(payload["devices"]), helper.DEVICE_LIMIT)
+        self.assertLessEqual(len(buf.getvalue()), helper.TOTAL_LIMIT)
+        for row in payload["devices"]:
+            self.assertLessEqual(len(row["name"]), helper.FIELD_LIMIT)
+            self.assertNotIn(chr(10), row["name"])
+
+    def test_error_keeps_the_panel_s_full_budget(self):
+        """A traceback is the one field worth more than FIELD_LIMIT, and the
+        panel already reserves ERROR_LIMIT for it."""
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            helper.emit({"ok": False, "schema_version": 1,
+                         "error": "boom " * 200, "devices": []})
+        text = json.loads(buf.getvalue())["error"]
+        self.assertGreater(len(text), helper.FIELD_LIMIT)
+        self.assertLessEqual(len(text), helper.ERROR_LIMIT)
+
+    def test_oversized_payload_drops_devices(self):
+        rows = [{"id": "d%d" % i, "name": "n", "brand": "b", "kind": "mouse",
+                 "transport": "usb", "status": "s"} for i in range(helper.DEVICE_LIMIT)]
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            helper.emit({"ok": True, "schema_version": 1, "error": "", "devices": rows})
+        self.assertLessEqual(len(buf.getvalue()), helper.TOTAL_LIMIT)
 
 
 if __name__ == "__main__":
