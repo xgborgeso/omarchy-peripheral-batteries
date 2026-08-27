@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  # Nothing here depends on us, but plenty depends on Omarchy. The weekly run
+  # tests against Omarchy's current branch instead of the pinned tag, so upstream
+  # drift shows up as a failed scheduled build rather than a broken install.
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Pinned so a normal push is reproducible. The scheduled run overrides this.
+  OMARCHY_REF: v4.0.1
+
+jobs:
+  tests:
+    name: tests (python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Omarchy is rolling Arch, so it runs a newer Python than most distros.
+        # The low end is the floor the helper's syntax actually needs; the high
+        # end is what a current Arch install will really execute.
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Helper tests
+        run: python3 tests/helper.test.py -v
+
+      - name: Model tests
+        run: node tests/model.test.js
+
+      - name: Panel safety guards
+        run: python3 tests/panel.test.py -v
+
+  manifest:
+    name: manifest (omarchy validator)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick the Omarchy ref
+        id: ref
+        run: |
+          ref="${OMARCHY_REF}"
+          # The weekly run is the drift detector, so it tracks the branch.
+          if [ "${{ github.event_name }}" = "schedule" ]; then ref="quattro"; fi
+          echo "ref=$ref" >>"$GITHUB_OUTPUT"
+          echo "Validating against Omarchy $ref"
+
+      - name: Fetch the real validator
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/omarchy-plugin-validate \
+            "https://raw.githubusercontent.com/basecamp/omarchy/${{ steps.ref.outputs.ref }}/bin/omarchy-plugin-validate"
+          chmod +x /tmp/omarchy-plugin-validate
+
+      - name: Validate the plugin folder
+        run: /tmp/omarchy-plugin-validate .
+
+      - name: Manifest version matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          manifest="$(jq -r .version manifest.json)"
+          echo "tag=$tag manifest=$manifest"
+          [ "$tag" = "$manifest" ] || {
+            echo "::error::manifest.json version ($manifest) does not match tag ($tag)"
+            exit 1
+          }
+
+  qml:
+    name: qml
+    runs-on: ubuntu-latest
+    # Arch is what Omarchy runs, so its Qt is the Qt our QML will meet.
+    container: archlinux:latest
+    steps:
+      - name: Install Qt tooling
+        # quickshell is in Arch's extra repo, so CI lints against the real
+        # Quickshell types rather than a stubbed approximation of them.
+        run: pacman -Syu --noconfirm --needed qt6-declarative quickshell git jq
+
+      - uses: actions/checkout@v4
+
+      - name: Syntax check
+        # qmlformat exits non-zero on a parse error and needs no import
+        # resolution, which makes it the one QML gate that is fully deterministic.
+        run: |
+          set -euo pipefail
+          status=0
+          for file in *.qml; do
+            if /usr/lib/qt6/bin/qmlformat "$file" >/dev/null; then
+              echo "ok    $file"
+            else
+              echo "::error file=$file::QML syntax error"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Pick the Omarchy ref
+        id: ref
+        run: |
+          ref="${OMARCHY_REF}"
+          if [ "${{ github.event_name }}" = "schedule" ]; then ref="quattro"; fi
+          echo "ref=$ref" >>"$GITHUB_OUTPUT"
+
+      - name: Fetch Omarchy's shell modules
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --filter=blob:none --sparse \
+            --branch "${{ steps.ref.outputs.ref }}" \
+            https://github.com/basecamp/omarchy /tmp/omarchy
+          git -C /tmp/omarchy sparse-checkout set shell
+          # Quickshell exposes the shell root as the `qs` module, so qmllint
+          # resolves qs.Ui and qs.Commons only through a matching directory name.
+          mkdir -p /tmp/imports
+          ln -sfn /tmp/omarchy/shell /tmp/imports/qs
+
+      - name: Lint against the real Omarchy types
+        # Informational: there is a standing backlog of unqualified-access
+        # warnings, and qmllint exits 0 for warnings anyway. The value is the
+        # diff in the log when an Omarchy type changes under us.
+        continue-on-error: true
+        run: |
+          /usr/lib/qt6/bin/qmllint --signal-handler-parameters disable \
+            -I /tmp/imports *.qml 2>&1 | tee /tmp/qmllint.txt
+          echo "### qmllint" >>"$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >>"$GITHUB_STEP_SUMMARY"
+          grep -E '^(Warning|Error)' /tmp/qmllint.txt | sort | uniq -c | sort -rn | head -30 >>"$GITHUB_STEP_SUMMARY" || true
+          echo "\`\`\`" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Fail on unresolved Omarchy types
+        # This one IS a gate: if a type we use stops existing upstream, the
+        # import stops resolving, and that is a real break rather than style.
+        run: |
+          set -euo pipefail
+          # QProcess::ExitStatus on Quickshell's Process has no QML metatype, so
+          # signal-handler-parameters reports "was not found" for a signal that
+          # works fine. That category is off here; a genuinely missing type or
+          # module still trips the grep below.
+          if grep -E 'was not found|Failed to import' /tmp/qmllint.txt; then
+            echo "::error::A type or module we import no longer resolves against Omarchy ${{ steps.ref.outputs.ref }}"
+            exit 1
+          fi
+          echo "All imported Omarchy types resolve."
