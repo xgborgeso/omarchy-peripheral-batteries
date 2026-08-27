@@ -47,6 +47,10 @@ Item {
     return toLocalFile(Qt.resolvedUrl(".")) + "/helper/status.py"
   }
 
+  // A helper that lists an implausible number of devices should not be able to
+  // queue an unbounded run of toasts.
+  readonly property int notifyQueueLimit: 8
+
   // id -> { tier: "warn"|"crit", atMs: number }
   property var notified: ({})
 
@@ -93,41 +97,87 @@ Item {
 
   function maybeNotify(list) {
     if (!notifyOnLow) return
-    var now = Date.now()
-    var next = Object.assign({}, notified)
-    for (var i = 0; i < list.length; i++) {
-      var dev = list[i]
-      if (!dev.available || dev.level === Model.LEVEL_UNKNOWN) continue
-      if (dev.charging || dev.level > lowBatteryPercent) {
-        delete next[dev.id]
-        continue
-      }
-      var tier = dev.level <= criticalBatteryPercent ? "crit" : "warn"
-      var prev = next[dev.id]
-      var due = !prev
-        || (prev.tier === "warn" && tier === "crit")
-        || (notifyRepeatMinutes > 0 && now - prev.atMs >= notifyRepeatMinutes * 60000)
-      if (!due) continue
-      next[dev.id] = { tier: tier, atMs: now }
-      sendNotify(dev, tier)
-    }
-    notified = next
+    var plan = Model.notifyPlan(list, notified, {
+      low: lowBatteryPercent,
+      critical: criticalBatteryPercent,
+      repeatMinutes: notifyRepeatMinutes,
+      now: Date.now()
+    })
+    notified = plan.state
+    for (var i = 0; i < plan.due.length; i++)
+      sendNotify(plan.due[i].device, plan.due[i].tier)
   }
 
+  // The notification card draws the glyph, summary and body but never the app
+  // name, so the headline is what identifies us. omarchy-notification-send is
+  // preferred over notify-send: it hands every value to Notify as one typed
+  // D-Bus argument, so a device name read off a HID descriptor can never be
+  // reparsed as an option or a hint. The app name still has to be set, or the
+  // shell files the toast as ephemeral and drops it from the history panel.
+  readonly property string notifierPath:
+    (Quickshell.env("OMARCHY_PATH") || "/usr/share/omarchy") + "/bin/omarchy-notification-send"
+
+  // One Process sends one notification at a time, so a batch has to queue.
+  // Dropping the overflow would leave a device silently unwarned for good:
+  // maybeNotify has already recorded it as notified, and at the default repeat
+  // of 0 it would never be due again until the battery recovers and falls back.
+  property var notifyQueue: []
+
   function sendNotify(dev, tier) {
-    if (notifyProcess.running) return
-    var urgency = tier === "crit" ? "critical" : "normal"
-    var title = dev.name || Model.kindLabel(dev.kind)
-    var body = "Battery " + Model.levelText(dev.level)
-    notifyProcess.command = ["notify-send", "-u", urgency, "-a", "Peripheral Batteries", "--", title, body]
+    var queue = notifyQueue.slice()
+    if (queue.length >= notifyQueueLimit) return
+    queue.push([notifierPath,
+      "-u", tier === "crit" ? "critical" : "normal",
+      "-g", Model.kindGlyph(dev.kind),
+      "--app-name", "Peripheral Batteries",
+      Model.notifyHeadline(tier), Model.notifyBody(dev)])
+    notifyQueue = queue
+    drainNotifyQueue()
+  }
+
+  function drainNotifyQueue() {
+    if (notifyProcess.running || notifyQueue.length === 0) return
+    var queue = notifyQueue.slice()
+    var command = queue.shift()
+    notifyQueue = queue
+    notifyProcess.command = command
     notifyProcess.running = true
   }
 
-  Component.onCompleted: refresh()
+  // The bar assigns settings one event-loop turn after the component is built,
+  // so polling on completion would read the stock helper path and the stock
+  // thresholds. The first is merely wasteful; the second can fire the very
+  // alert a user lowered lowBatteryPercent to avoid. Wait for the assignment,
+  // which the host makes even for an entry that carries no settings, and let
+  // the fallback cover a host that never makes one.
+  property bool settingsApplied: false
+  property bool completed: false
+
+  function applySettings() {
+    if (settingsApplied) return
+    settingsApplied = true
+    refresh()
+  }
+
+  // The `settings: root.settings` binding evaluates the stock empty object while
+  // this component is still initializing, so only an assignment that lands after
+  // completion is the host's.
+  onSettingsChanged: if (completed) applySettings()
+
+  Component.onCompleted: {
+    completed = true
+    firstPollFallback.restart()
+  }
+
+  Timer {
+    id: firstPollFallback
+    interval: 2000
+    onTriggered: root.applySettings()
+  }
 
   Timer {
     interval: Math.max(5, root.refreshIntervalSec) * 1000
-    running: root.enabled
+    running: root.enabled && root.settingsApplied
     repeat: true
     onTriggered: root.refresh()
   }
@@ -151,5 +201,6 @@ Item {
     id: notifyProcess
     running: false
     command: []
+    onExited: root.drainNotifyQueue()
   }
 }

@@ -255,6 +255,55 @@ function errorText(value) {
   return text.slice(0, ERROR_LIMIT).replace(/\s+\S*$/, "") + "..."
 }
 
+
+// Which devices are due a low-battery notification, and at which tier. Kept
+// here as a pure function so the tiering and repeat rules can be tested without
+// a running shell; Service.qml owns only the sending.
+//
+// `state` maps device id -> { tier: "warn"|"crit", atMs }. A device that is
+// absent, unavailable, or has no readable level keeps whatever state it had:
+// only a recovery above the threshold, or charging, clears it.
+function notifyPlan(devices, state, options) {
+  var opts = options || {}
+  var low = opts.low
+  var critical = opts.critical
+  var repeatMinutes = opts.repeatMinutes || 0
+  var now = opts.now || 0
+
+  var next = {}
+  for (var key in state || {}) next[key] = state[key]
+
+  var due = []
+  var list = devices || []
+  for (var i = 0; i < list.length; i++) {
+    var dev = list[i]
+    if (!dev || !dev.available || !isKnownLevel(dev.level)) continue
+    if (dev.charging || dev.level > low) {
+      delete next[dev.id]
+      continue
+    }
+    var tier = dev.level <= critical ? "crit" : "warn"
+    var prev = next[dev.id]
+    var isDue = !prev
+      || (prev.tier === "warn" && tier === "crit")
+      || (repeatMinutes > 0 && now - prev.atMs >= repeatMinutes * 60000)
+    if (!isDue) continue
+    next[dev.id] = { tier: tier, atMs: now }
+    due.push({ device: dev, tier: tier })
+  }
+  return { state: next, due: due }
+}
+
+// The headline carries the plugin's identity: Omarchy's notification card
+// renders the summary, body and glyph but never the app name.
+function notifyHeadline(tier) {
+  return tier === "crit" ? "Peripheral battery critical" : "Peripheral battery low"
+}
+
+function notifyBody(dev) {
+  return (dev && dev.name ? dev.name : kindLabel(dev ? dev.kind : "unknown"))
+    + " \u00b7 " + levelText(dev ? dev.level : LEVEL_UNKNOWN)
+}
 if (typeof module !== "undefined") {
   module.exports = {
     LEVEL_UNKNOWN: LEVEL_UNKNOWN,
@@ -276,6 +325,9 @@ if (typeof module !== "undefined") {
     brandGroups: brandGroups,
     lowestLevel: lowestLevel,
     anyLow: anyLow,
-    errorText: errorText
+    errorText: errorText,
+    notifyPlan: notifyPlan,
+    notifyHeadline: notifyHeadline,
+    notifyBody: notifyBody
   }
 }

@@ -20,6 +20,9 @@ no daemon and no dependencies beyond the Python 3 already on the system.
   reads `--`
 - Warning and critical thresholds you set on the bar, driving both the colour
   and the notification
+- Notifications in Omarchy's own style, with a per-kind glyph, and one alert per
+  device: a device is warned once, again if it turns critical, and not again
+  until it has charged back above the threshold
 
 Laptop packs belong to `omarchy.power` and never appear here. Volume, connect
 and forget stay with the stock Audio and Bluetooth panels.

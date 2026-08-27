@@ -216,3 +216,79 @@ assert.strictEqual(Model.isHumanBrand("unknown"), false)
 assert.strictEqual(Model.isHumanBrand("Logitech"), true)
 
 console.log("model.test.js ok")
+
+// --- low-battery notification rules -----------------------------------------
+// These mirror the shell behaviour verified against a live Omarchy notification
+// server: one alert per device per tier, escalation from warn to crit, silence
+// while charging, and a fresh alert only after the battery recovers.
+
+function dev(id, level, extra) {
+  var d = { id: id, name: id, kind: "mouse", level: level, charging: false, available: true }
+  for (var k in extra || {}) d[k] = extra[k]
+  return d
+}
+
+const OPTS = { low: 20, critical: 10, repeatMinutes: 0, now: 1000 }
+function plan(devices, state, over) {
+  var o = {}
+  for (var k in OPTS) o[k] = OPTS[k]
+  for (var k2 in over || {}) o[k2] = over[k2]
+  return Model.notifyPlan(devices, state, o)
+}
+
+// A healthy device is silent and holds no state.
+var healthy = plan([dev("m", 60)], {})
+assert.strictEqual(healthy.due.length, 0)
+assert.strictEqual(Object.keys(healthy.state).length, 0)
+
+// Crossing the warning threshold notifies exactly once.
+var warn = plan([dev("m", 15)], {})
+assert.strictEqual(warn.due.length, 1)
+assert.strictEqual(warn.due[0].tier, "warn")
+assert.strictEqual(plan([dev("m", 15)], warn.state).due.length, 0)
+
+// Falling to the critical threshold escalates, then goes quiet again.
+var crit = plan([dev("m", 8)], warn.state)
+assert.strictEqual(crit.due.length, 1)
+assert.strictEqual(crit.due[0].tier, "crit")
+assert.strictEqual(plan([dev("m", 8)], crit.state).due.length, 0)
+
+// Crit does not de-escalate back to warn on a small rebound below the threshold.
+assert.strictEqual(plan([dev("m", 15)], crit.state).due.length, 0)
+
+// Recovering above the threshold clears the state, so the next drop warns again.
+var recovered = plan([dev("m", 60)], crit.state)
+assert.strictEqual(recovered.due.length, 0)
+assert.strictEqual(recovered.state["m"], undefined)
+assert.strictEqual(plan([dev("m", 8)], recovered.state).due.length, 1)
+
+// A charging device is never warned, and charging clears a prior alert.
+assert.strictEqual(plan([dev("m", 5, { charging: true })], {}).due.length, 0)
+assert.strictEqual(plan([dev("m", 5, { charging: true })], crit.state).state["m"], undefined)
+
+// Devices with no readable level, or that are away, are skipped without
+// disturbing state they already had.
+assert.strictEqual(plan([dev("m", Model.LEVEL_UNKNOWN)], {}).due.length, 0)
+assert.strictEqual(plan([dev("m", 5, { available: false })], {}).due.length, 0)
+assert.strictEqual(plan([dev("m", Model.LEVEL_UNKNOWN)], crit.state).state["m"].tier, "crit")
+
+// Every low device in one batch is due, not just the first. Regression: the
+// sender used to drop the rest of the batch while already recording them as
+// notified, which silenced them until the battery recovered.
+var batch = plan([dev("a", 12), dev("b", 14), dev("c", 8)], {})
+assert.strictEqual(batch.due.length, 3)
+assert.deepStrictEqual(batch.due.map(function (d) { return d.device.id }), ["a", "b", "c"])
+assert.deepStrictEqual(batch.due.map(function (d) { return d.tier }), ["warn", "warn", "crit"])
+
+// repeatMinutes = 0 never re-notifies; a positive value re-notifies only once
+// the interval has fully elapsed.
+assert.strictEqual(plan([dev("m", 15)], warn.state, { now: 1000 + 3600000 }).due.length, 0)
+assert.strictEqual(plan([dev("m", 15)], warn.state, { repeatMinutes: 1, now: 1000 + 59000 }).due.length, 0)
+assert.strictEqual(plan([dev("m", 15)], warn.state, { repeatMinutes: 1, now: 1000 + 60000 }).due.length, 1)
+
+// The headline carries the identity, because Omarchy's notification card never
+// renders the app name; the body carries the device and its level.
+assert.strictEqual(Model.notifyHeadline("warn"), "Peripheral battery low")
+assert.strictEqual(Model.notifyHeadline("crit"), "Peripheral battery critical")
+assert.strictEqual(Model.notifyBody(dev("m", 15)), "m · 15%")
+assert.strictEqual(Model.notifyBody({ kind: "headset", level: 8 }), "Headset · 8%")
