@@ -55,6 +55,34 @@ omarchy bar set io.github.xgborgeso.peripheral-batteries hideWhenDisconnected fa
 omarchy bar move io.github.xgborgeso.peripheral-batteries --section right
 ```
 
+<details>
+<summary>What the notifications look like</summary>
+
+<br>
+
+A device is warned once when it crosses `lowBatteryPercent`, once more if it
+falls past `criticalBatteryPercent`, and not again until it has charged back
+above the threshold. Each alert carries the glyph for its kind.
+
+<img src="docs/notification-low.png" width="424"
+     alt="A notification reading Peripheral battery low, Logitech PRO X, 18 percent, with a mouse glyph">
+
+<img src="docs/notification-critical.png" width="424"
+     alt="A notification reading Peripheral battery critical, Logitech PRO X 2 LIGHTSPEED, 7 percent, with a headset glyph">
+
+<img src="docs/notification-keyboard.png" width="424"
+     alt="A notification reading Peripheral battery low, Logitech MX Keys, 16 percent, with a keyboard glyph">
+
+<img src="docs/notification-controller.png" width="424"
+     alt="A notification reading Peripheral battery critical, DualSense Wireless Controller, 9 percent, with a controller glyph">
+
+Two devices crossing the threshold in the same poll are both warned:
+
+<img src="docs/notification-both.png" width="424"
+     alt="Two stacked notifications, one critical for a headset at 8 percent and one low for a mouse at 12 percent">
+
+</details>
+
 ## Controls
 
 Left click opens the panel, middle click refreshes.
