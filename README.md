@@ -63,11 +63,6 @@ A device is warned once when it crosses `lowBatteryPercent`, once more if it
 falls past `criticalBatteryPercent`, and not again until it has charged back
 above the threshold. Each alert carries the glyph for its kind.
 
-<details>
-<summary>See what they look like</summary>
-
-<br>
-
 <img src="docs/notification-low.png" width="424"
      alt="A notification reading Peripheral battery low, Logitech PRO X, 18 percent, with a mouse glyph">
 
@@ -84,8 +79,6 @@ Two devices crossing the threshold in the same poll are both warned:
 
 <img src="docs/notification-both.png" width="424"
      alt="Two stacked notifications, one critical for a headset at 8 percent and one low for a mouse at 12 percent">
-
-</details>
 
 ## Controls
 
