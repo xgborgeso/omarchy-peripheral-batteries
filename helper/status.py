@@ -546,6 +546,102 @@ def apply_headsetcontrol_json(devices: list[Device], parsed: Any) -> None:
                 device.available = True
 
 
+# Some Bluetooth peripherals never get a battery under /sys/class/power_supply,
+# because no kernel driver claims them: the MX Keys Mini for Mac (046D:B36A),
+# for one, binds to hid-generic instead of hid-logitech-hidpp. They still report
+# their level over the GATT Battery Service, and BlueZ exposes that as
+# org.bluez.Battery1. This only fills devices that sysfs left without a level,
+# matched by Bluetooth address (HID_UNIQ). The BlueZ Icon also settles the kind
+# when the name gives nothing away ("MX MCHNCL M" is a keyboard).
+def enrich_bluez(devices: list[Device]) -> None:
+    if all(dev.available and dev.kind != "unknown" for dev in devices):
+        return
+    try:
+        output = subprocess.run(
+            [
+                "busctl",
+                "--system",
+                "--json=short",
+                "call",
+                "org.bluez",
+                "/",
+                "org.freedesktop.DBus.ObjectManager",
+                "GetManagedObjects",
+            ],
+            capture_output=True,
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return
+    if output.returncode != 0:
+        return
+    try:
+        parsed = json.loads(output.stdout.decode("utf-8", errors="replace"))
+    except json.JSONDecodeError:
+        return
+    apply_bluez_objects(devices, parsed)
+
+
+BLUEZ_ICON_KINDS = {
+    "input-keyboard": "keyboard",
+    "input-mouse": "mouse",
+    "input-gaming": "controller",
+    "audio-headset": "headset",
+    "audio-headphones": "headset",
+}
+
+
+def bluez_value(entry: Any) -> Any:
+    # busctl --json packs every variant as {"type": ..., "data": ...}.
+    if isinstance(entry, dict):
+        return entry.get("data")
+    return None
+
+
+def apply_bluez_objects(devices: list[Device], parsed: Any) -> None:
+    if not isinstance(parsed, dict):
+        return
+    data = parsed.get("data")
+    if not isinstance(data, list) or not data or not isinstance(data[0], dict):
+        return
+    levels: dict[str, int] = {}
+    kinds: dict[str, str] = {}
+    for interfaces in data[0].values():
+        if not isinstance(interfaces, dict):
+            continue
+        device = interfaces.get("org.bluez.Device1")
+        if not isinstance(device, dict):
+            continue
+        address = bluez_value(device.get("Address"))
+        if not isinstance(address, str):
+            continue
+        address = address.lower()
+        icon = bluez_value(device.get("Icon"))
+        if isinstance(icon, str) and icon in BLUEZ_ICON_KINDS:
+            kinds[address] = BLUEZ_ICON_KINDS[icon]
+        battery = interfaces.get("org.bluez.Battery1")
+        if not isinstance(battery, dict):
+            continue
+        level = bluez_value(battery.get("Percentage"))
+        # bool is an int subclass; a variant that decodes to True is not 1 %.
+        if isinstance(level, int) and not isinstance(level, bool) and 0 <= level <= 100:
+            levels[address] = level
+    for dev in devices:
+        address = dev.id.split(":", 1)[1].lower() if ":" in dev.id else ""
+        if not address:
+            continue
+        if dev.kind == "unknown" and address in kinds:
+            dev.kind = kinds[address]
+        if dev.available:
+            continue
+        level = levels.get(address)
+        if level is None:
+            continue
+        dev.level = level
+        dev.available = True
+
+
 def normalize_product(s: str) -> str:
     n = s.lower()
     for word in PRODUCT_STRIP:
@@ -614,6 +710,7 @@ def main() -> None:
     try:
         devices = collect()
         enrich_headsetcontrol(devices)
+        enrich_bluez(devices)
         emit(
             {
                 "ok": True,

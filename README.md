@@ -102,8 +102,11 @@ the length of one call:
 python3 helper/status.py
 ```
 
-It reads `/sys` only, never opens `/dev/hidraw`, and prints one line of JSON and
-exits 0 whatever happens. The `ok` and `error` fields say which state it is in.
+It reads `/sys`, never opens `/dev/hidraw`, and prints one line of JSON and
+exits 0 whatever happens. Bluetooth devices that no kernel driver gives a
+battery (an MX Keys Mini for Mac, for example) get their level from BlueZ
+instead, through one read-only `busctl` call that is skipped when `/sys`
+already covered everything. The `ok` and `error` fields say which state it is in.
 `PERIPHERALS_SYSFS` points it at another tree, which is how the tests run:
 
 ```bash
