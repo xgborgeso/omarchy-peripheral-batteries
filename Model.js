@@ -205,6 +205,33 @@ function kindGlyph(kind) {
   return "󰂂"
 }
 
+// The glyph for the bar chip and the panel header. Normally the kind of the
+// first device whose kind is known, so a keyboard-only setup shows a keyboard
+// rather than a battery outline that reads like the laptop's own power chip.
+// While a device is at or under the threshold the glyph names that device
+// instead (the weakest one when several are), next to the low colour that
+// anyLow() already sets. A low device of unknown kind is not skipped: the
+// neutral battery is better than pointing at the wrong device.
+function summaryGlyph(devices, threshold) {
+  var list = devices || []
+  var i
+  if (threshold !== undefined && threshold !== null) {
+    var worst = null
+    for (i = 0; i < list.length; i++) {
+      var dev = list[i]
+      if (!dev || dev.level === LEVEL_UNKNOWN || dev.charging) continue
+      if (dev.level > threshold) continue
+      if (worst === null || dev.level < worst.level) worst = dev
+    }
+    if (worst !== null) return kindGlyph(String(worst.kind || "unknown"))
+  }
+  for (i = 0; i < list.length; i++) {
+    var kind = String(list[i] && list[i].kind || "unknown")
+    if (kind !== "unknown") return kindGlyph(kind)
+  }
+  return kindGlyph("unknown")
+}
+
 function deviceBrand(dev) {
   var brand = String(dev && dev.brand || "").trim()
   return isHumanBrand(brand) ? brand : ""
@@ -337,6 +364,7 @@ if (typeof module !== "undefined") {
     rowCaption: rowCaption,
     displayName: displayName,
     kindGlyph: kindGlyph,
+    summaryGlyph: summaryGlyph,
     deviceBrand: deviceBrand,
     brandGroups: brandGroups,
     lowestLevel: lowestLevel,

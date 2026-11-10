@@ -98,7 +98,7 @@ Ui.Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: "󰂂"
+    text: Model.summaryGlyph(svc.devices, root.lowBatteryPercent)
     tooltipText: "Open Peripheral Batteries"
     useActiveColor: false
     foreground: root.barIconColor
@@ -154,7 +154,7 @@ Ui.Panel {
             iconComponent: Component {
               Text {
                 textFormat: Text.PlainText
-                text: "󰂂"
+                text: Model.summaryGlyph(svc.devices, root.lowBatteryPercent)
                 color: root.hasDevices ? root.foreground : root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.display
