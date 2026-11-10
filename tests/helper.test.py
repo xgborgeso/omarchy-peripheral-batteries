@@ -96,6 +96,10 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(devices[1].level, 67)
         self.assertTrue(devices[1].available)
 
+    def test_keychron_is_a_keyboard(self):
+        # Keychron boards report only the model, with no "keyboard" in the name.
+        self.assertEqual(helper.kind_of("Keychron K3", None), "keyboard")
+
     def test_system_pack_is_ignored(self):
         # The this-machine tree carries a scope=System BAT0 alongside the
         # peripheral packs; omarchy.power owns it, so it must never list here.
