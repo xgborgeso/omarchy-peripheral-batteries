@@ -275,6 +275,9 @@ def kind_of(name: str, hid: Optional[Hid]) -> str:
         return "headset"
     if "keyboard" in n or "keys" in n:
         return "keyboard"
+    # Keychron names its boards by model only ("Keychron K3").
+    if "keychron" in n:
+        return "keyboard"
     if "controller" in n or "gamepad" in n:
         return "controller"
     if "mouse" in n:

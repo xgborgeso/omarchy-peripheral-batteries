@@ -328,3 +328,17 @@ assert.strictEqual(hostileError.lastError.indexOf("\n"), -1)
 // A name that is nothing but markup falls back to the kind label rather than
 // rendering an empty notification.
 assert.strictEqual(Model.notifyBody({ name: "<>", level: 5, kind: "headset" }), "Headset \u00b7 5%")
+
+// The chip shows the first known kind instead of a battery outline, and the
+// weakest low device while one is low; a low device of unknown kind keeps the
+// neutral battery rather than pointing at another device.
+var mouse = { kind: "mouse", level: 80, charging: false }
+var keyboard = { kind: "keyboard", level: 15, charging: false }
+var mystery = { kind: "unknown", level: 5, charging: false }
+assert.strictEqual(Model.summaryGlyph([], 20), "\u{f0082}")
+assert.strictEqual(Model.summaryGlyph([{ kind: "unknown", level: 50 }, mouse], 20), Model.kindGlyph("mouse"))
+assert.strictEqual(Model.summaryGlyph([mouse, keyboard], 20), Model.kindGlyph("keyboard"))
+assert.strictEqual(Model.summaryGlyph([mouse, keyboard], 10), Model.kindGlyph("mouse"))
+assert.strictEqual(Model.summaryGlyph([mouse, keyboard, mystery], 20), Model.kindGlyph("unknown"))
+assert.strictEqual(Model.summaryGlyph([mouse, { kind: "keyboard", level: 10, charging: true }], 20), Model.kindGlyph("mouse"))
+assert.strictEqual(Model.summaryGlyph([mouse, { kind: "keyboard", level: -1 }], 20), Model.kindGlyph("mouse"))
