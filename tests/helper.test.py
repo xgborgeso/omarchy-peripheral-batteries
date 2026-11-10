@@ -96,6 +96,87 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(devices[1].level, 67)
         self.assertTrue(devices[1].available)
 
+    def test_bluez_battery_fills_device_without_sysfs_level(self):
+        devices = [stub("hid:00:11:22:33:44:55", "keyboard", -1)]
+        parsed = {
+            "type": "a{oa{sa{sv}}}",
+            "data": [
+                {
+                    "/org/bluez/hci0/dev_00_11_22_33_44_55": {
+                        "org.bluez.Device1": {"Address": {"type": "s", "data": "00:11:22:33:44:55"}},
+                        "org.bluez.Battery1": {"Percentage": {"type": "y", "data": 75}},
+                    }
+                }
+            ],
+        }
+        helper.apply_bluez_objects(devices, parsed)
+        self.assertEqual(devices[0].level, 75)
+        self.assertTrue(devices[0].available)
+
+    def test_bluez_battery_keeps_sysfs_level(self):
+        devices = [stub("hid:aa:bb:cc:dd:ee:ff", "keyboard", 93)]
+        parsed = {
+            "data": [
+                {
+                    "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF": {
+                        "org.bluez.Device1": {"Address": {"type": "s", "data": "AA:BB:CC:DD:EE:FF"}},
+                        "org.bluez.Battery1": {"Percentage": {"type": "y", "data": 40}},
+                    }
+                }
+            ]
+        }
+        helper.apply_bluez_objects(devices, parsed)
+        self.assertEqual(devices[0].level, 93)
+
+    def test_bluez_icon_sets_unknown_kind(self):
+        devices = [stub("hid:66:77:88:99:aa:bb", "unknown", -1), stub("hid:aa:bb:cc:dd:ee:ff", "mouse", 50)]
+        parsed = {
+            "data": [
+                {
+                    "/org/bluez/hci0/dev_66_77_88_99_AA_BB": {
+                        "org.bluez.Device1": {
+                            "Address": {"type": "s", "data": "66:77:88:99:AA:BB"},
+                            "Icon": {"type": "s", "data": "input-keyboard"},
+                        },
+                        "org.bluez.Battery1": {"Percentage": {"type": "y", "data": 60}},
+                    },
+                    "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF": {
+                        "org.bluez.Device1": {
+                            "Address": {"type": "s", "data": "AA:BB:CC:DD:EE:FF"},
+                            "Icon": {"type": "s", "data": "input-keyboard"},
+                        },
+                    },
+                }
+            ]
+        }
+        helper.apply_bluez_objects(devices, parsed)
+        self.assertEqual(devices[0].kind, "keyboard")
+        self.assertEqual(devices[0].level, 60)
+        # A kind the name already settled stays, and no battery means no level.
+        self.assertEqual(devices[1].kind, "mouse")
+        self.assertEqual(devices[1].level, 50)
+
+    def test_bluez_rejects_malformed_values(self):
+        devices = [stub("hid:00:11:22:33:44:55", "unknown", -1)]
+        parsed = {
+            "data": [
+                {
+                    "/org/bluez/hci0/dev_00_11_22_33_44_55": {
+                        "org.bluez.Device1": {
+                            "Address": {"type": "s", "data": "00:11:22:33:44:55"},
+                            "Icon": {"type": "s", "data": ["input-keyboard"]},
+                        },
+                        "org.bluez.Battery1": {"Percentage": {"type": "y", "data": 250}},
+                    }
+                }
+            ]
+        }
+        helper.apply_bluez_objects(devices, parsed)
+        helper.apply_bluez_objects(devices, {"data": "nonsense"})
+        helper.apply_bluez_objects(devices, None)
+        self.assertEqual(devices[0].kind, "unknown")
+        self.assertFalse(devices[0].available)
+
     def test_system_pack_is_ignored(self):
         # The this-machine tree carries a scope=System BAT0 alongside the
         # peripheral packs; omarchy.power owns it, so it must never list here.
